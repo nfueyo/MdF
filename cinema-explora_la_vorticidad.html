@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campo de velocidades y vorticidad</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{--b:#d9dde3;--mut:#667085;--blue:#538cd5}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#20242a;background:#f6f7f9}
+#app{min-height:100%;display:grid;grid-template-rows:auto auto 1fr}
+header{background:#fff;border-bottom:1px solid var(--b);padding:12px 16px}
+h1{font-size:18px;margin:0 0 4px} .lead{font-size:13px;color:var(--mut)}
+.controls{background:#fff;border-bottom:1px solid var(--b);padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+label{font-size:13px;display:flex;align-items:center;gap:6px}
+select,button{font:inherit;padding:6px 8px} input[type=range]{width:110px}
+.check{gap:5px}.main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(350px,.75fr);min-height:650px}
+.col{min-width:0;display:grid;grid-template-rows:minmax(0,560px) auto;background:#fff;overflow:hidden}.col:first-child{border-right:1px solid var(--b)}
+.plot{height:560px;min-height:0}.note{position:relative;z-index:5;border-top:1px solid var(--b);padding:14px 16px 16px;font-size:13px;line-height:1.45;background:#fff;min-height:104px}
+.eq{font-family:Georgia,"Times New Roman",serif;font-size:15px}.key{font-weight:650}
+@media(max-width:900px){.main{grid-template-columns:1fr}.col{grid-template-rows:500px auto}.col:first-child{border-right:0;border-bottom:1px solid var(--b)}.plot{height:500px}}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+<h1>Campo de velocidades y vorticidad en flujos bidimensionales</h1>
+<div class="lead">La vorticidad mide la rotación local: <span class="eq">ω = ∇×v</span>. En un flujo 2D <span class="eq">v=(u,v,0)</span>, solo existe <span class="eq">ω<sub>z</sub>=∂v/∂x−∂u/∂y</span>.</div>
+</header>
+
+<div class="controls">
+<label>Flujo
+<select id="flow">
+<option value="solid">Rotación sólida</option>
+<option value="shear">Cizalladura simple</option>
+<option value="vortex">Vórtice regularizado</option>
+<option value="cell">Celdas vorticales</option>
+<option value="mixed">Deformación + rotación</option>
+<option value="multicell">Mosaico vortical multiescala</option>
+<option value="wave">Vorticidad ondulada</option>
+<option value="dipoles">Cuadrupolo de vórtices</option>
+</select></label>
+
+<label>Velocidad
+<select id="velmode"><option value="arrows">Vectores</option><option value="stream">Líneas de corriente</option></select></label>
+
+<label id="densLab">Densidad <input id="density" type="range" min="5" max="25" value="13"><span id="densVal">13×13</span></label>
+<label>Tamaño <input id="size" type="range" min="0.35" max="1.8" step=".05" value="1"><span id="sizeVal">1.00</span></label>
+<label class="check"><input id="omegaContours" type="checkbox" checked> Contornos |ω|</label>
+<label>Vectores ω 3D <input id="omegaDensity" type="range" min="4" max="17" value="9"><span id="odVal">9×9</span></label>
+<button id="reset">Restablecer vistas</button>
+</div>
+
+<div class="main">
+<section class="col">
+<div id="p2" class="plot"></div>
+<div class="note" id="explain"></div>
+</section>
+<section class="col">
+<div id="p3" class="plot"></div>
+<div class="note"><span class="key">Vista 3D de la vorticidad.</span> El dominio del flujo está en el plano <span class="eq">xy</span>. Como el flujo es 2D, los vectores <span class="eq">ω</span> son perpendiculares a ese plano. Su sentido indica el signo de <span class="eq">ω<sub>z</sub></span> y su longitud, su módulo.</div>
+</section>
+</div>
+</div>
+
+<script>
+const C='#538cd5', N=51, lo=-1, hi=1;
+const flow=document.getElementById('flow'), velmode=document.getElementById('velmode'),
+density=document.getElementById('density'), size=document.getElementById('size'),
+omegaContours=document.getElementById('omegaContours'), omegaDensity=document.getElementById('omegaDensity');
+let cam3={eye:{x:1.45,y:1.45,z:1.15},up:{x:0,y:0,z:1}};
+
+function F(kind,x,y){
+ if(kind==='solid') return {u:-y,v:x,w:2,name:'Rotación sólida',eq:'u = −y,  v = x',desc:'Todos los elementos giran con la misma velocidad angular. La vorticidad es uniforme y positiva: ωz = 2.'};
+ if(kind==='shear') return {u:y,v:0,w:-1,name:'Cizalladura simple',eq:'u = y,  v = 0',desc:'Aunque las trayectorias son rectas, un pequeño elemento material gira: ωz = −1. Es un ejemplo clave de que “líneas rectas” no implica vorticidad nula.'};
+ if(kind==='vortex'){let a=.20,r2=x*x+y*y+a*a; return {u:-y/r2,v:x/r2,w:2*a*a/(r2*r2),name:'Vórtice regularizado',eq:'u = −y/(r²+a²),  v = x/(r²+a²)',desc:'El movimiento es circular, pero la vorticidad se concentra en el núcleo. Lejos del centro puede haber velocidad tangencial apreciable con vorticidad muy pequeña.'}}
+ if(kind==='cell'){return {u:Math.sin(Math.PI*x)*Math.cos(Math.PI*y),v:-Math.cos(Math.PI*x)*Math.sin(Math.PI*y),w:2*Math.PI*Math.sin(Math.PI*x)*Math.sin(Math.PI*y),name:'Celdas vorticales',eq:'u = sin(πx) cos(πy),  v = −cos(πx) sin(πy)',desc:'La vorticidad cambia de signo entre regiones. Los contornos de |ω| muestran intensidad, mientras que los vectores 3D muestran además el signo mediante su dirección ±z.'}}
+ if(kind==='multicell'){
+   // streamfunction psi = sin(pi x)sin(pi y)+0.22 sin(3pi x)sin(2pi y)
+   let u=Math.PI*Math.sin(Math.PI*x)*Math.cos(Math.PI*y)+0.44*Math.PI*Math.sin(3*Math.PI*x)*Math.cos(2*Math.PI*y);
+   let v=-Math.PI*Math.cos(Math.PI*x)*Math.sin(Math.PI*y)-0.66*Math.PI*Math.cos(3*Math.PI*x)*Math.sin(2*Math.PI*y);
+   let w=2*Math.PI*Math.PI*Math.sin(Math.PI*x)*Math.sin(Math.PI*y)+2.86*Math.PI*Math.PI*Math.sin(3*Math.PI*x)*Math.sin(2*Math.PI*y);
+   return {u,v,w,name:'Mosaico vortical multiescala',eq:'ψ = sin(πx)sin(πy) + 0.22 sin(3πx)sin(2πy)',desc:'La superposición de dos escalas espaciales produce núcleos de distinta intensidad, lóbulos y cambios de signo. Es útil para observar que estructuras pequeñas pueden producir gradientes —y vorticidad— intensos.'};
+ }
+ if(kind==='wave'){
+   // psi = sin(2pi x) cos(pi y) + 0.25 cos(pi x) sin(3pi y)
+   let u=-Math.PI*Math.sin(2*Math.PI*x)*Math.sin(Math.PI*y)+0.75*Math.PI*Math.cos(Math.PI*x)*Math.cos(3*Math.PI*y);
+   let v=-2*Math.PI*Math.cos(2*Math.PI*x)*Math.cos(Math.PI*y)+0.25*Math.PI*Math.sin(Math.PI*x)*Math.sin(3*Math.PI*y);
+   let w=5*Math.PI*Math.PI*Math.sin(2*Math.PI*x)*Math.cos(Math.PI*y)+2.5*Math.PI*Math.PI*Math.cos(Math.PI*x)*Math.sin(3*Math.PI*y);
+   return {u,v,w,name:'Vorticidad ondulada',eq:'ψ = sin(2πx)cos(πy) + 0.25 cos(πx)sin(3πy)',desc:'Bandas y lóbulos de vorticidad positiva y negativa se entrelazan. Las líneas de corriente permiten comparar la geometría global del flujo con la distribución local de ω.'};
+ }
+ if(kind==='dipoles'){
+   // Four regularized vortices with alternating circulation.
+   let a=.13, vort=[[-.42,-.42,1],[.42,-.42,-1],[-.42,.42,-1],[.42,.42,1]],u=0,v=0,w=0;
+   vort.forEach(g=>{let dx=x-g[0],dy=y-g[1],r2=dx*dx+dy*dy+a*a,G=.22*g[2];u+=-G*dy/r2;v+=G*dx/r2;w+=2*G*a*a/(r2*r2)});
+   return {u,v,w,name:'Cuadrupolo de vórtices',eq:'superposición de 4 vórtices regularizados de signo alterno',desc:'Cuatro núcleos de vorticidad alternante interactúan y generan separatrices y regiones de recirculación. Muestra con claridad que el campo de velocidad es una respuesta espacial no local a una distribución compleja de vorticidad.'};
+ }
+ let O=.65; return {u:x-O*y,v:-y+O*x,w:2*O,name:'Deformación + rotación',eq:'u = x − Ωy,  v = −y + Ωx  (Ω=0.65)',desc:'Superpone deformación extensional y rotación. La vorticidad detecta la parte rotacional: ωz = 2Ω = 1.30.'};
+}
+function linspace(a,b,n){return Array.from({length:n},(_,i)=>a+(b-a)*i/(n-1))}
+const xx=linspace(lo,hi,N), yy=linspace(lo,hi,N);
+
+function omegaGrid(){
+ let z=[];for(let j=0;j<N;j++){let row=[];for(let i=0;i<N;i++)row.push(Math.abs(F(flow.value,xx[i],yy[j]).w));z.push(row)}return z;
+}
+function arrows2D(n,fac){
+ let xs=[],ys=[]; let vmax=0, pts=[];
+ for(let j=0;j<n;j++)for(let i=0;i<n;i++){let x=lo+(hi-lo)*i/(n-1),y=lo+(hi-lo)*j/(n-1),q=F(flow.value,x,y),m=Math.hypot(q.u,q.v);vmax=Math.max(vmax,m);pts.push([x,y,q.u,q.v,m])}
+ let cell=2/(n-1), Lmax=cell*.78*fac;
+ pts.forEach(p=>{let [x,y,u,v,m]=p,L=vmax?Lmax*m/vmax:0,ang=Math.atan2(v,u),xe=x+L*Math.cos(ang),ye=y+L*Math.sin(ang);
+   xs.push(x,xe,null);
+   let ah=Math.min(L*.35,cell*.25*fac),a=.52;
+   ys.push(y,ye,null);
+   xs.push(xe,xe-ah*Math.cos(ang-a),null,xe,xe-ah*Math.cos(ang+a),null);
+   ys.push(ye,ye-ah*Math.sin(ang-a),null,ye,ye-ah*Math.sin(ang+a),null);
+ });
+ return {type:'scatter',mode:'lines',x:xs,y:ys,line:{color:C,width:1.7},hoverinfo:'skip',name:'velocidad'};
+}
+function fieldGrid(){
+ let U=[],V=[];for(let j=0;j<N;j++){let ur=[],vr=[];for(let i=0;i<N;i++){let q=F(flow.value,xx[i],yy[j]);ur.push(q.u);vr.push(q.v)}U.push(ur);V.push(vr)}return {U,V};
+}
+// RK4 streamline integration from seeds on all four boundaries.
+function velocity(x,y){let q=F(flow.value,x,y);return [q.u,q.v]}
+function step(x,y,h,sgn){
+ function norm(a){let m=Math.hypot(a[0],a[1]);return m?[a[0]/m,a[1]/m]:[0,0]}
+ let k1=norm(velocity(x,y)),k2=norm(velocity(x+sgn*h*k1[0]/2,y+sgn*h*k1[1]/2)),
+ k3=norm(velocity(x+sgn*h*k2[0]/2,y+sgn*h*k2[1]/2)),k4=norm(velocity(x+sgn*h*k3[0],y+sgn*h*k3[1]));
+ return [x+sgn*h*(k1[0]+2*k2[0]+2*k3[0]+k4[0])/6,y+sgn*h*(k1[1]+2*k2[1]+2*k3[1]+k4[1])/6];
+}
+function streamline(seed,h=.018){
+ let parts=[];
+ for(let sg of [-1,1]){let x=seed[0],y=seed[1],p=[];for(let k=0;k<700;k++){if(x<lo-.02||x>hi+.02||y<lo-.02||y>hi+.02)break;p.push([x,y]);let q=velocity(x,y);if(Math.hypot(...q)<1e-5)break;[x,y]=step(x,y,h,sg)}parts.push(p)}
+ parts[0].reverse();return parts[0].concat(parts[1].slice(1));
+}
+function streamTrace(n){
+ let xs=[],ys=[], seeds=[],m=Math.max(4,Math.round(n*.72)),a=linspace(-.94,.94,m);
+ a.forEach(t=>{seeds.push([lo,t],[hi,t],[t,lo],[t,hi])});
+ seeds.forEach(sd=>{let p=streamline(sd);p.forEach(q=>{xs.push(q[0]);ys.push(q[1])});xs.push(null);ys.push(null)});
+ return {type:'scatter',mode:'lines',x:xs,y:ys,line:{color:C,width:1.5},hoverinfo:'skip',name:'líneas de corriente'};
+}
+function omega3D(n,fac){
+ let shafts={x:[],y:[],z:[]}, hx=[],hy=[],hz=[],hu=[],hv=[],hw=[], maxw=0,pts=[];
+ for(let j=0;j<n;j++)for(let i=0;i<n;i++){let x=lo+2*i/(n-1),y=lo+2*j/(n-1),w=F(flow.value,x,y).w;maxw=Math.max(maxw,Math.abs(w));pts.push([x,y,w])}
+ let Lmax=.55*fac;
+ pts.forEach(p=>{let [x,y,w]=p,L=maxw?Lmax*w/maxw:0;shafts.x.push(x,x,null);shafts.y.push(y,y,null);shafts.z.push(0,L*.78,null);
+   if(Math.abs(L)>1e-6){hx.push(x);hy.push(y);hz.push(L*.78);hu.push(0);hv.push(0);hw.push(L*.22)}
+ });
+ return [
+ {type:'scatter3d',mode:'lines',...shafts,line:{color:C,width:4},hoverinfo:'skip'},
+ {type:'cone',x:hx,y:hy,z:hz,u:hu,v:hv,w:hw,anchor:'tail',sizemode:'absolute',sizeref:.10*fac,colorscale:[[0,C],[1,C]],showscale:false,hoverinfo:'skip'}
+ ];
+}
+function plane3D(){return {type:'mesh3d',x:[-1,1,1,-1],y:[-1,-1,1,1],z:[0,0,0,0],i:[0,0],j:[1,2],k:[2,3],color:'#d9e7f6',opacity:.28,hoverinfo:'skip'}}
+
+async function draw(){
+ let n=+density.value,fac=+size.value,od=+omegaDensity.value;
+ document.getElementById('densVal').textContent=n+'×'+n;document.getElementById('sizeVal').textContent=fac.toFixed(2);document.getElementById('odVal').textContent=od+'×'+od;
+ let q0=F(flow.value,.2,.2), traces=[];
+ if(omegaContours.checked) traces.push({type:'contour',x:xx,y:yy,z:omegaGrid(),colorscale:'Viridis',opacity:.72,contours:{coloring:'fill',showlines:true},line:{width:.6},colorbar:{title:'|ω|',thickness:15,len:.72},hovertemplate:'x=%{x:.2f}<br>y=%{y:.2f}<br>|ω|=%{z:.3g}<extra></extra>'});
+ traces.push(velmode.value==='arrows'?arrows2D(n,fac):streamTrace(n));
+ await Plotly.react('p2',traces,{margin:{l:55,r:25,b:50,t:38},title:{text:'Dominio 2D: velocidad'+(omegaContours.checked?' + |vorticidad|':'')},showlegend:false,xaxis:{title:'x',range:[-1.05,1.05],scaleanchor:'y',scaleratio:1},yaxis:{title:'y',range:[-1.05,1.05]},paper_bgcolor:'#fff',plot_bgcolor:'#fff'},{responsive:true,displaylogo:false});
+ let t3=[plane3D(),...omega3D(od,fac)];
+ await Plotly.react('p3',t3,{margin:{l:0,r:0,b:0,t:38},title:{text:'Vectores de vorticidad ω = ωz k'},showlegend:false,scene:{camera:cam3,aspectmode:'manual',aspectratio:{x:1,y:1,z:.75},xaxis:{title:'x',range:[-1.1,1.1]},yaxis:{title:'y',range:[-1.1,1.1]},zaxis:{title:'ω (dirección z)',range:[-.7,.7]},bgcolor:'#fff'}},{responsive:true,displaylogo:false,scrollZoom:true});
+ const p3=document.getElementById('p3');p3.removeAllListeners&&p3.removeAllListeners('plotly_relayout');p3.on('plotly_relayout',e=>{if(e['scene.camera'])cam3=e['scene.camera']});
+ document.getElementById('explain').innerHTML='<span class="key">'+q0.name+'.</span> <span class="eq">'+q0.eq+'.</span> '+q0.desc+'<br><span class="key">Cómo leer la figura:</span> los vectores de velocidad están escalados con |v|; las líneas de corriente son tangentes a v. Los contornos representan <span class="eq">|ω|</span>, no velocidad. En 3D, +z y −z distinguen el signo de la vorticidad.';
+}
+[flow,velmode,density,size,omegaContours,omegaDensity].forEach(e=>e.addEventListener(e.type==='range'?'input':'change',draw));
+document.getElementById('reset').addEventListener('click',()=>{cam3={eye:{x:1.45,y:1.45,z:1.15},up:{x:0,y:0,z:1}};draw()});
+draw();
+</script>
+</body></html>
