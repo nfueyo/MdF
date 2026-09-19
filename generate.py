@@ -10,8 +10,10 @@ from urllib.parse import quote
 # Personalización: se excluyen carpetas por nombre, a cualquier profundidad.
 EXCLUDED_DIRS = {'tools', 'scripts', 'assets', 'static', 'images', 'img', 'css', 'js',
                  'node_modules', 'vendor', 'venv', '__pycache__', 'tests', 'test',
-                 'dist', 'build', '_site', 'coverage', 'outputs', 'work'}
-EXCLUDED_FILES = {'index.html', 'index.htm', '404.html', 'readme.html', 'license.html'}
+                 'dist', 'build', '_site', 'coverage', 'outputs', 'work',
+                 'mdf-index'}
+EXCLUDED_FILES = {'index.html', 'index.htm', '404.html', 'readme.html', 'license.html',
+                  'template.html'}
 EXTENSIONS = {'.html': 'App HTML', '.htm': 'App HTML', '.pdf': 'PDF'}
 PREFIXES = {'cinema': 'Cinemática', 'festat': 'Estática de fluidos'}
 TITLE = 'Mecánica de fluidos'
