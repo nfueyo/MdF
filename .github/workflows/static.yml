@@ -33,7 +33,7 @@ jobs:
           python-version: "3.12"
 
       - name: Generate resource index
-        run: python .github/generate.py --root .
+        run: python generate.py --root .
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
