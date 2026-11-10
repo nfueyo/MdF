@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cálculo del factor de fricción f</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf2f5;color:#173144;font:16px system-ui,sans-serif}main{max-width:1380px;margin:auto;padding:clamp(12px,3vw,38px)}header{margin-bottom:22px}h1{font-size:clamp(30px,5vw,52px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}p{margin:8px 0;line-height:1.5}.tag{color:#176b61;font-weight:bold;letter-spacing:.12em;font-size:12px}.layout{display:grid;grid-template-columns:minmax(270px,340px) minmax(0,1fr);gap:16px;align-items:start}.panel{background:white;border:1px solid #ccdbe3;border-radius:16px;padding:18px}fieldset{border:0;border-top:1px solid #ccdbe3;margin:14px 0 0;padding:5px 0 0}legend{font-size:13px;color:#176b61;font-weight:750}label{display:block;margin:9px 0;font-size:14px;font-weight:650}input,select,button{display:block;width:100%;padding:8px;margin-top:4px;font:inherit;color:inherit;background:#f6fafc;border:1px solid #8fa9b8;border-radius:7px}button{margin-top:14px;background:#146a61;color:white;font-weight:bold;cursor:pointer}:focus-visible{outline:2px solid #146a61;outline-offset:2px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}.metrics div{padding:10px;background:#edf6f3;border-radius:7px;font-size:13px}.metrics strong{display:block;font-size:20px;overflow-wrap:anywhere}.scroll{overflow:auto}svg{display:block;width:100%;min-width:620px;height:auto}svg text{font:13px system-ui;fill:#284657}.error{color:#a22519}[aria-invalid=true]{border-color:#a22519}.muted,small{color:#486273}.chart{margin-top:20px}[hidden]{display:none!important}details{margin-top:16px}summary{cursor:pointer;font-weight:650}@media(max-width:850px){.layout{grid-template-columns:1fr}}
+.numeric label{margin-bottom:0}.number-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px;margin-top:4px}.number-controls input,.number-controls button{margin:0}.number-controls button{width:34px;padding:4px;background:#edf6f3;color:#146a61}.number-controls button:hover{background:#d7eee8}
+</style>
+</head>
+<body>
+<main>
+<header><div class="tag">MECÁNICA DE FLUIDOS · SI</div><h1>Cálculo del factor de fricción f</h1><p>Factor de fricción de Darcy para flujo interno</p></header>
+<noscript><p class="panel error">Este visor tiene JavaScript deshabilitado. Descarga el archivo y ábrelo en un navegador con JavaScript habilitado.</p></noscript>
+<div class="layout">
+<form id="inputs" class="panel" novalidate>
+<h2>Datos de entrada</h2>
+<label>Método<select id="method"><option value="direct">Re y rugosidad relativa</option><option value="physical">Geometría y propiedades del flujo</option></select></label>
+<div id="direct">
+<div class="numeric"><label for="re">Número de Reynolds, Re [–]</label><div class="number-controls"><input id="re" inputmode="decimal" value="100000"><button type="button" data-step="-1" aria-label="Disminuir Re">▾</button><button type="button" data-step="1" aria-label="Aumentar Re">▴</button></div></div>
+<div class="numeric"><label for="rough">Rugosidad relativa, ε/D o ε/Dₕ [–]</label><div class="number-controls"><input id="rough" inputmode="decimal" value="0,001"><button type="button" data-step="-1" aria-label="Disminuir la rugosidad relativa">▾</button><button type="button" data-step="1" aria-label="Aumentar la rugosidad relativa">▴</button></div></div>
+</div>
+<div id="physical" hidden>
+<fieldset><legend>Geometría</legend>
+<label>Sección<select id="shape"><option value="circle">Circular · D</option><option value="hydraulic">No circular · Dₕ conocido</option><option value="section">No circular · A y ℘ conocidos</option></select></label>
+<div class="numeric" id="d-row"><label for="d"><span id="d-label">Diámetro interior, D [m]</span></label><div class="number-controls"><input id="d" inputmode="decimal" value="0,1"><button type="button" data-step="-1" aria-label="Disminuir el diámetro">▾</button><button type="button" data-step="1" aria-label="Aumentar el diámetro">▴</button></div></div>
+<div class="numeric" id="area-row" hidden><label for="area">Área transversal, A [m²]</label><div class="number-controls"><input id="area" inputmode="decimal" placeholder="Ej. 0,01"><button type="button" data-step="-1" aria-label="Disminuir el área">▾</button><button type="button" data-step="1" aria-label="Aumentar el área">▴</button></div></div>
+<div class="numeric" id="perimeter-row" hidden><label for="perimeter">Perímetro mojado, ℘ [m]</label><div class="number-controls"><input id="perimeter" inputmode="decimal" value="0,4"><button type="button" data-step="-1" aria-label="Disminuir el perímetro mojado">▾</button><button type="button" data-step="1" aria-label="Aumentar el perímetro mojado">▴</button></div></div>
+<div class="numeric"><label for="epsilon">Rugosidad absoluta, ε [m]</label><div class="number-controls"><input id="epsilon" inputmode="decimal" value="0,0001"><button type="button" data-step="-1" aria-label="Disminuir la rugosidad absoluta">▾</button><button type="button" data-step="1" aria-label="Aumentar la rugosidad absoluta">▴</button></div></div>
+</fieldset>
+<fieldset><legend>Flujo</legend>
+<label>Magnitud conocida<select id="flow"><option value="v">Velocidad media V</option><option value="q">Caudal Q</option></select></label>
+<div class="numeric" id="v-row"><label for="v">Velocidad media, V [m/s]</label><div class="number-controls"><input id="v" inputmode="decimal" value="1"><button type="button" data-step="-1" aria-label="Disminuir la velocidad">▾</button><button type="button" data-step="1" aria-label="Aumentar la velocidad">▴</button></div></div>
+<div class="numeric" id="q-row" hidden><label for="q">Caudal, Q [m³/s]</label><div class="number-controls"><input id="q" inputmode="decimal" value="0,007854"><button type="button" data-step="-1" aria-label="Disminuir el caudal">▾</button><button type="button" data-step="1" aria-label="Aumentar el caudal">▴</button></div></div>
+</fieldset>
+<fieldset><legend>Fluido</legend>
+<label>Viscosidad conocida<select id="viscosity"><option value="nu">Cinemática ν</option><option value="mu">Dinámica μ y densidad ρ</option></select></label>
+<div class="numeric" id="nu-row"><label for="nu">Viscosidad cinemática, ν [m²/s]</label><div class="number-controls"><input id="nu" inputmode="decimal" value="1e-6"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad cinemática">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad cinemática">▴</button></div></div>
+<div id="mu-row" hidden>
+<div class="numeric"><label for="mu">Viscosidad dinámica, μ [Pa·s]</label><div class="number-controls"><input id="mu" inputmode="decimal" value="0,001"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad dinámica">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad dinámica">▴</button></div></div>
+<div class="numeric"><label for="rho">Densidad, ρ [kg/m³]</label><div class="number-controls"><input id="rho" inputmode="decimal" value="1000"><button type="button" data-step="-1" aria-label="Disminuir la densidad">▾</button><button type="button" data-step="1" aria-label="Aumentar la densidad">▴</button></div></div>
+</div>
+</fieldset>
+</div>
+<button type="submit">Calcular f</button>
+<small>Admite coma o punto decimal y notación científica.</small>
+</form>
+<section class="panel">
+<h2>Resultado</h2>
+<div aria-live="polite">
+<div class="metrics">
+<div>Régimen<strong id="regime">—</strong></div>
+<div>Factor Darcy, f [–]<strong id="factor">—</strong></div>
+<div>Re [–]<strong id="result-re">—</strong></div>
+<div>Rugosidad relativa [–]<strong id="result-rough">—</strong></div>
+</div>
+<p id="status">Preparando el cálculo…</p><small id="derived"></small>
+</div>
+<div class="chart">
+<h2>Diagrama log–log</h2>
+<div class="scroll"><svg id="plot" viewBox="0 0 850 480" role="img" aria-label="Diagrama de Moody" tabindex="0"></svg></div>
+<p id="readout" class="muted">Mueve el puntero sobre el gráfico o usa ← y → con el gráfico enfocado.</p>
+<small>Azul · laminar. Franja ámbar · transición. Verde · curvas turbulentas. Rojo · caso calculado.</small>
+</div>
+<details><summary>Ecuaciones y alcance</summary>
+<p>Re = VD/ν o VDₕ/ν, con Dₕ = 4A/℘, V = Q/A y ν = μ/ρ.</p>
+<p>Laminar si Re &lt; 2300. Se aplica f = 64/Re, que corresponde a flujo plenamente desarrollado en tubería circular. Para otras secciones se muestra como referencia circular.</p>
+<p>Transición si 2300 ≤ Re &lt; 4000. El gráfico marca Re mediante una línea vertical. Turbulento si Re ≥ 4000.</p>
+<p>En régimen turbulento se resuelve 1/√f = −2 log₁₀(r/3,7 + 2,51/(Re√f)) por bisección, con r = ε/D o ε/Dₕ. Se admite 0 ≤ r ≤ 0,05. El uso de Dₕ en Colebrook–White es aproximado.</p>
+<p>El factor de Fanning equivale a f/4.</p>
+</details>
+</section>
+</div>
+</main>
+<script>
+(function () {
+  'use strict';
+  const get = id => document.getElementById(id);
+  const value = id => get(id).value;
+  const show = (id, visible) => { get(id).hidden = !visible; };
+  const write = (id, content) => { get(id).textContent = content; };
+  const log = Math.log10;
+  const lower = 2300, upper = 4000;
+  const format = n => n !== 0 && (n < 0.0001 || n >= 1e7)
+    ? n.toExponential(4).replace('.', ',') : String(Number(n.toPrecision(5))).replace('.', ',');
+  const form = get('inputs');
+  const svg = get('plot');
+  let state = null, scale, probe;
+  const hint = get('readout').textContent;
+
+  function decimal(raw) {
+    const text = raw.trim().replace(',', '.');
+    return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(text) ? Number(text) : NaN;
+  }
+
+  function number(id, name, allowZero, missing) {
+    const raw = value(id).trim();
+    const n = decimal(raw);
+    if (!Number.isFinite(n) || (allowZero ? n < 0 : n <= 0)) {
+      get(id).setAttribute('aria-invalid', 'true');
+      throw Error(!raw && missing ? missing : name + ' debe ser un número finito ' +
+        (allowZero ? 'mayor o igual que cero.' : 'mayor que cero.'));
+    }
+    return n;
+  }
+
+  function colebrook(re, r) {
+    let a = 0, b = 2 * log(re) + 4;
+    for (let i = 0; i < 58; i++) {
+      const x = (a + b) / 2;
+      if (x + 2 * log(r / 3.7 + 2.51 * x / re) > 0) b = x;
+      else a = x;
+    }
+    return 4 / ((a + b) * (a + b));
+  }
+
+  function solve(physical, shape, useQ, useMu) {
+    let re, r, derived = '';
+    if (physical) {
+      let area, d;
+      if (shape === 'section') {
+        area = number('area', 'A');
+        d = 4 * (area / number('perimeter', '℘'));
+      } else {
+        d = number('d', shape === 'circle' ? 'D' : 'Dₕ');
+        if (useQ) area = shape === 'circle' ? Math.PI / 4 * d * d
+          : number('area', 'A', false, 'Para usar Q con Dₕ necesitas A. Introduce el área o selecciona V.');
+      }
+      const v = useQ ? number('q', 'Q') / area : number('v', 'V');
+      const nu = useMu ? number('mu', 'μ') / number('rho', 'ρ') : number('nu', 'ν');
+      if (![d, v, nu].every(n => Number.isFinite(n) && n > 0)) throw Error('Las magnitudes derivadas quedan fuera del rango numérico.');
+      re = v * d / nu;
+      r = number('epsilon', 'ε', true) / d;
+      derived = (shape === 'circle' ? 'D' : 'Dₕ') + ' = ' + format(d) + ' m · V = ' +
+        format(v) + ' m/s · ν = ' + format(nu) + ' m²/s';
+    } else {
+      re = number('re', 'Re');
+      r = number('rough', 'La rugosidad relativa', true);
+    }
+    if (!(re > 0) || !Number.isFinite(re) || !Number.isFinite(64 / re)) throw Error('Re queda fuera del rango numérico.');
+    if (r > .05) {
+      get(physical ? 'epsilon' : 'rough').setAttribute('aria-invalid', 'true');
+      throw Error('La rugosidad relativa debe estar entre 0 y 0,05.');
+    }
+    const regime = re < lower ? 'Laminar' : re < upper ? 'Transición' : 'Turbulento';
+    const f = re < lower ? 64 / re : re < upper ? null : colebrook(re, r);
+    return {re, r, regime, f, derived, noncircular: physical && shape !== 'circle'};
+  }
+
+  const left = 75, right = 727, top = 26, bottom = 416;
+  const line = (x1,y1,x2,y2,color,attributes = '') =>
+    '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="'+color+'" '+attributes+'/>';
+  const label = (x,y,t,attributes = '') =>
+    '<text x="'+x+'" y="'+y+'" '+attributes+'>'+t+'</text>';
+  const dot = (x,y,r,color) =>
+    '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+color+'" stroke="white" stroke-width="2"/>';
+  const power = n => '10' + String(n).split('').map(c => c === '-' ? '⁻' : '⁰¹²³⁴⁵⁶⁷⁸⁹'[c]).join('');
+
+  function plot(result) {
+    const lr = result ? log(result.re) : 5;
+    const lf = result && result.f ? log(result.f) : -2;
+    const xmin = Math.min(2, Math.floor(lr) - .1), xmax = Math.max(8, Math.ceil(lr) + .1);
+    const ymin = Math.min(log(.005), lf - .1), ymax = Math.max(-1, lf + .1);
+    const x = n => left + (n-xmin)/(xmax-xmin)*(right-left);
+    const y = n => bottom - (n-ymin)/(ymax-ymin)*(bottom-top);
+    scale = {xmin,xmax,ymin,ymax,x,y};
+    probe = undefined;
+    write('readout', hint);
+    const path = (a,b,fn,color,width) => {
+      const points = [];
+      for (let i=0;i<=160;i++) {
+        const n = a+(b-a)*i/160;
+        points.push(x(n).toFixed(2)+','+y(fn(n)).toFixed(2));
+      }
+      return '<polyline points="'+points.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="'+width+'"/>';
+    };
+    let grid = '', curves = '', legends = '';
+    const xStep = Math.ceil((xmax-xmin)/8);
+    for (let n=Math.ceil(xmin/xStep)*xStep;n<=xmax;n+=xStep) {
+      grid += line(x(n),top,x(n),bottom,'#d3dfe5') + label(x(n),bottom+22,power(n),'text-anchor="middle"');
+    }
+    const yStep = Math.ceil((ymax-ymin)/8);
+    for (let n=Math.floor(ymin);n<=ymax+1e-10;n+=yStep) {
+      for (const m of yStep === 1 ? [1,2,5] : [1]) {
+        const t = n+log(m);
+        if (t<ymin || t>ymax+1e-10) continue;
+        const name = n >= -4 && n <= 2 ? format(m*10**n) : (m===1?'':m+'×')+power(n);
+        grid += line(left,y(t),right,y(t),'#d3dfe5') + label(left-8,y(t)+4,name,'text-anchor="end"');
+      }
+    }
+    curves += path(xmin,log(lower),n=>log(64)-n,'#275fa9',2.5);
+    const end = Math.min(xmax, log(Number.MAX_VALUE)-1e-10);
+    let labelMin = top+4;
+    for (const r of [.05,.03,.02,.01,.005,.002,.001,.0005,.0001,.00001,0]) {
+      const fn = n => log(colebrook(10**n,r));
+      curves += path(log(upper),end,fn,'#258076',1.4);
+      const py = y(fn(end)), ly = Math.max(py,labelMin);
+      if (py>=top && py<=bottom && ly<=bottom+10) {
+        legends += line(x(end),py,right+11,ly,'#6a978f')+label(right+14,ly+4,r===0?'0 · lisa':format(r));
+        labelMin = ly+15;
+      }
+    }
+    let mark = '';
+    if (result) {
+      if (result.re >= upper) curves += path(log(upper),end,n=>log(colebrook(10**n,result.r)),'#ba452a',2);
+      mark = result.f === null ? line(x(lr),top,x(lr),bottom,'#ba452a','stroke-width="2" stroke-dasharray="6 4"')
+        : dot(x(lr),y(lf),6.5,'#ba452a');
+    }
+    svg.innerHTML = '<defs><clipPath id="moody-clip"><rect x="75" y="26" width="652" height="390"/></clipPath></defs>'+
+      '<rect x="75" y="26" width="652" height="390" fill="#f6fafc"/>'+
+      '<rect x="'+x(log(lower))+'" y="26" width="'+(x(log(upper))-x(log(lower)))+'" height="390" fill="#fae6b2"/>'+
+      grid+'<g clip-path="url(#moody-clip)">'+curves+'</g>'+
+      '<rect x="75" y="26" width="652" height="390" fill="none" stroke="#829ca9"/>'+legends+mark+
+      '<g data-probe="" pointer-events="none"></g>'+
+      label(402,469,'Número de Reynolds, Re [–]','text-anchor="middle"')+
+      label(17,221,'Factor de Darcy, f [–]','text-anchor="middle" transform="rotate(-90 17 221)"')+
+      label(741,16,'ε/D o ε/Dₕ');
+  }
+
+  function inspect(n) {
+    const g = svg.querySelector('[data-probe]');
+    if (!g || !scale) return;
+    probe = Math.max(-323,scale.xmin,Math.min(scale.xmax,log(Number.MAX_VALUE)-1e-10,n));
+    const re = 10**probe, x = scale.x(probe);
+    const f = re < lower ? 64/re : re >= upper && state ? colebrook(re,state.r) : null;
+    const y = f ? scale.y(log(f)) : NaN;
+    g.innerHTML = line(x,top,x,bottom,'#566c7c','stroke-dasharray="4 4"') +
+      (y>=top && y<=bottom ? dot(x,y,4,'#345267') : '');
+    write('readout','Re ≈ '+format(re)+(f && Number.isFinite(f) ? ' · f en la curva ≈ '+format(f)
+      : re>=lower && re<upper ? ' · transición, f indeterminado' : ''));
+  }
+
+  function clearProbe() {
+    probe = undefined;
+    const g = svg.querySelector('[data-probe]');
+    if (g) g.textContent = '';
+    write('readout',hint);
+  }
+
+  function refresh() {
+    const physical = value('method') === 'physical', shape = value('shape');
+    const useQ = value('flow') === 'q', useMu = value('viscosity') === 'mu';
+    show('direct',!physical);
+    show('physical',physical);
+    show('d-row',shape !== 'section');
+    show('area-row',shape === 'section' || (shape === 'hydraulic' && useQ));
+    show('perimeter-row',shape === 'section');
+    show('v-row',!useQ);
+    show('q-row',useQ);
+    show('nu-row',!useMu);
+    show('mu-row',useMu);
+    write('d-label',shape === 'circle' ? 'Diámetro interior, D [m]' : 'Diámetro hidráulico, Dₕ [m]');
+    for (const input of form.querySelectorAll('[aria-invalid]')) input.removeAttribute('aria-invalid');
+    state = null;
+    let message;
+    try {
+      state = solve(physical,shape,useQ,useMu);
+      message = state.f === null ? 'En transición, f es incierto. La línea roja marca Re.'
+        : state.regime === 'Laminar' ? (state.noncircular ? 'f = 64/Re como referencia circular. El valor laminar depende de la forma.' : 'f = 64/Re.')
+        : (state.noncircular ? 'Colebrook–White con Dₕ como aproximación.' : 'Colebrook–White resuelta por bisección.');
+    } catch (error) {
+      message = error.message;
+    }
+    get('status').className = state ? 'muted' : 'error';
+    write('status',message);
+    write('regime',state ? state.regime : '—');
+    write('factor',state && state.f !== null ? format(state.f) : '—');
+    write('result-re',state ? format(state.re) : '—');
+    write('result-rough',state ? format(state.r) : '—');
+    write('derived',state ? state.derived : '');
+    plot(state);
+  }
+
+  form.addEventListener('submit',event => {
+    event.preventDefault();
+    refresh();
+    const invalid = form.querySelector('[aria-invalid]');
+    if (invalid) invalid.focus();
+  });
+  form.addEventListener('click', event => {
+    const button = event.target.closest('button[data-step]');
+    if (!button) return;
+    const input = button.parentElement.querySelector('input');
+    const isRoughness = input.id === 'rough' || input.id === 'epsilon';
+    const seeds = {rough: .0001, epsilon: .00001, area: .01};
+    const start = seeds[input.id] || decimal(input.defaultValue);
+    const current = decimal(input.value);
+    const direction = Number(button.dataset.step);
+    if (isRoughness && current === 0 && direction < 0) return;
+    let next = start;
+    if (Number.isFinite(current) && current > 0) {
+      const exponent = Math.floor(log(current));
+      const base = 10 ** exponent;
+      const step = base / (direction < 0 && current === base ? 100 : 10);
+      next = current + direction * step;
+      if (isRoughness && direction < 0 && current <= start) next = 0;
+    }
+    if (input.id === 'rough' && direction > 0 && current <= .05) next = Math.min(.05, next);
+    if (!Number.isFinite(next) || (!isRoughness && next <= 0)) return;
+    input.value = String(Number(next.toPrecision(15))).replace('.', ',');
+    refresh();
+  });
+  form.addEventListener('input',refresh);
+  form.addEventListener('change',refresh);
+  svg.addEventListener('pointermove',event => {
+    const p = svg.createSVGPoint();
+    p.x = event.clientX;
+    p.y = event.clientY;
+    const matrix = svg.getScreenCTM();
+    if (!matrix || !scale) return;
+    const q = p.matrixTransform(matrix.inverse());
+    if (q.x<left || q.x>right || q.y<top || q.y>bottom) return clearProbe();
+    inspect(scale.xmin+(q.x-left)/(right-left)*(scale.xmax-scale.xmin));
+  });
+  svg.addEventListener('pointerleave',clearProbe);
+  svg.addEventListener('keydown',event => {
+    if (event.key === 'Escape') return clearProbe();
+    if (!scale || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+    event.preventDefault();
+    const origin = probe === undefined ? (state ? log(state.re) : 4) : probe;
+    inspect(origin+(event.key === 'ArrowRight' ? .05 : -.05));
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
