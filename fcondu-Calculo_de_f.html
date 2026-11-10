@@ -35,11 +35,15 @@
 <div class="numeric" id="q-row" hidden><label for="q">Caudal, Q [m³/s]</label><div class="number-controls"><input id="q" inputmode="decimal" value="0,007854"><button type="button" data-step="-1" aria-label="Disminuir el caudal">▾</button><button type="button" data-step="1" aria-label="Aumentar el caudal">▴</button></div></div>
 </fieldset>
 <fieldset><legend>Fluido</legend>
+<label>Tipo de fluido<select id="fluid"><option value="custom">Personalizado</option><option value="air">Aire</option><option value="water">Agua</option></select></label>
+<p id="fluid-properties" class="muted" hidden></p>
+<div id="custom-fluid">
 <label>Viscosidad conocida<select id="viscosity"><option value="nu">Cinemática ν</option><option value="mu">Dinámica μ y densidad ρ</option></select></label>
 <div class="numeric" id="nu-row"><label for="nu">Viscosidad cinemática, ν [m²/s]</label><div class="number-controls"><input id="nu" inputmode="decimal" value="1e-6"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad cinemática">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad cinemática">▴</button></div></div>
 <div id="mu-row" hidden>
 <div class="numeric"><label for="mu">Viscosidad dinámica, μ [Pa·s]</label><div class="number-controls"><input id="mu" inputmode="decimal" value="0,001"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad dinámica">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad dinámica">▴</button></div></div>
 <div class="numeric"><label for="rho">Densidad, ρ [kg/m³]</label><div class="number-controls"><input id="rho" inputmode="decimal" value="1000"><button type="button" data-step="-1" aria-label="Disminuir la densidad">▾</button><button type="button" data-step="1" aria-label="Aumentar la densidad">▴</button></div></div>
+</div>
 </div>
 </fieldset>
 </div>
@@ -82,6 +86,10 @@
   const write = (id, content) => { get(id).textContent = content; };
   const log = Math.log10;
   const lower = 2300, upper = 4000;
+  const fluids = {
+    air: {name: 'Aire seco', rho: 1.204, mu: 1.81e-5},
+    water: {name: 'Agua líquida', rho: 998.2, mu: 1.002e-3}
+  };
   const format = n => n !== 0 && (n < 0.0001 || n >= 1e7)
     ? n.toExponential(4).replace('.', ',') : String(Number(n.toPrecision(5))).replace('.', ',');
   const form = get('inputs');
@@ -115,7 +123,7 @@
     return 4 / ((a + b) * (a + b));
   }
 
-  function solve(physical, shape, useQ, useMu) {
+  function solve(physical, shape, useQ, useMu, fluid) {
     let re, r, derived = '';
     if (physical) {
       let area, d;
@@ -128,7 +136,8 @@
           : number('area', 'A', false, 'Para usar Q con Dₕ necesitas A. Introduce el área o selecciona V.');
       }
       const v = useQ ? number('q', 'Q') / area : number('v', 'V');
-      const nu = useMu ? number('mu', 'μ') / number('rho', 'ρ') : number('nu', 'ν');
+      const nu = fluid ? fluid.mu / fluid.rho
+        : useMu ? number('mu', 'μ') / number('rho', 'ρ') : number('nu', 'ν');
       if (![d, v, nu].every(n => Number.isFinite(n) && n > 0)) throw Error('Las magnitudes derivadas quedan fuera del rango numérico.');
       re = v * d / nu;
       r = number('epsilon', 'ε', true) / d;
@@ -248,6 +257,12 @@
     show('perimeter-row',shape === 'section');
     show('v-row',!useQ);
     show('q-row',useQ);
+    const fluid = fluids[value('fluid')];
+    show('custom-fluid', !fluid);
+    show('fluid-properties', Boolean(fluid));
+    write('fluid-properties', fluid ? fluid.name + ' a 20 °C y 1 atm · ρ ≈ ' +
+      format(fluid.rho) + ' kg/m³ · μ ≈ ' + format(fluid.mu) + ' Pa·s · ν ≈ ' +
+      format(fluid.mu / fluid.rho) + ' m²/s' : '');
     show('nu-row',!useMu);
     show('mu-row',useMu);
     write('d-label',shape === 'circle' ? 'Diámetro interior, D [m]' : 'Diámetro hidráulico, Dₕ [m]');
@@ -255,7 +270,7 @@
     state = null;
     let message;
     try {
-      state = solve(physical,shape,useQ,useMu);
+      state = solve(physical,shape,useQ,useMu,fluid);
       message = state.f === null ? 'En transición, f es incierto. La línea roja marca Re.'
         : state.regime === 'Laminar' ? (state.noncircular ? 'f = 64/Re como referencia circular. El valor laminar depende de la forma.' : 'f = 64/Re.')
         : (state.noncircular ? 'Colebrook–White con Dₕ como aproximación.' : 'Colebrook–White resuelta por bisección.');
