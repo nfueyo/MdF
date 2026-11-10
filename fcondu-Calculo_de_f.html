@@ -6,7 +6,7 @@
 <title>Cálculo del factor de fricción f</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#edf2f5;color:#173144;font:16px system-ui,sans-serif}main{max-width:1380px;margin:auto;padding:clamp(12px,3vw,38px)}header{margin-bottom:22px}h1{font-size:clamp(30px,5vw,52px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}p{margin:8px 0;line-height:1.5}.tag{color:#176b61;font-weight:bold;letter-spacing:.12em;font-size:12px}.layout{display:grid;grid-template-columns:minmax(270px,340px) minmax(0,1fr);gap:16px;align-items:start}.panel{background:white;border:1px solid #ccdbe3;border-radius:16px;padding:18px}fieldset{border:0;border-top:1px solid #ccdbe3;margin:14px 0 0;padding:5px 0 0}legend{font-size:13px;color:#176b61;font-weight:750}label{display:block;margin:9px 0;font-size:14px;font-weight:650}input,select,button{display:block;width:100%;padding:8px;margin-top:4px;font:inherit;color:inherit;background:#f6fafc;border:1px solid #8fa9b8;border-radius:7px}button{margin-top:14px;background:#146a61;color:white;font-weight:bold;cursor:pointer}:focus-visible{outline:2px solid #146a61;outline-offset:2px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}.metrics div{padding:10px;background:#edf6f3;border-radius:7px;font-size:13px}.metrics strong{display:block;font-size:20px;overflow-wrap:anywhere}.scroll{overflow:auto}svg{display:block;width:100%;min-width:620px;height:auto}svg text{font:13px system-ui;fill:#284657}.error{color:#a22519}[aria-invalid=true]{border-color:#a22519}.muted,small{color:#486273}.chart{margin-top:20px}[hidden]{display:none!important}details{margin-top:16px}summary{cursor:pointer;font-weight:650}@media(max-width:850px){.layout{grid-template-columns:1fr}}
-.numeric label{margin-bottom:0}.number-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px;margin-top:4px}.number-controls input,.number-controls button{margin:0}.number-controls button{width:34px;padding:4px;background:#edf6f3;color:#146a61}.number-controls button:hover{background:#d7eee8}
+.numeric label{margin-bottom:0}.number-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,.8fr);align-items:center;gap:10px;margin-top:4px}.number-controls input{margin:0}.number-controls input[type=range]{padding:0;accent-color:#146a61;cursor:pointer}
 </style>
 </head>
 <body>
@@ -18,37 +18,37 @@
 <h2>Datos de entrada</h2>
 <label>Método<select id="method"><option value="direct">Re y rugosidad relativa</option><option value="physical">Geometría y propiedades del flujo</option></select></label>
 <div id="direct">
-<div class="numeric"><label for="re">Número de Reynolds, Re [–]</label><div class="number-controls"><input id="re" inputmode="decimal" value="100000"><button type="button" data-step="-1" aria-label="Disminuir Re">▾</button><button type="button" data-step="1" aria-label="Aumentar Re">▴</button></div></div>
-<div class="numeric"><label for="rough">Rugosidad relativa, ε/D o ε/Dₕ [–]</label><div class="number-controls"><input id="rough" inputmode="decimal" value="0,001"><button type="button" data-step="-1" aria-label="Disminuir la rugosidad relativa">▾</button><button type="button" data-step="1" aria-label="Aumentar la rugosidad relativa">▴</button></div></div>
+<div class="numeric"><label for="re">Número de Reynolds, Re [–]</label><div class="number-controls"><input id="re" inputmode="decimal" value="100000"><input type="range" id="re-slider" data-field="re" min="0" max="1000" step="1" aria-label="Ajustar Re"></div></div>
+<div class="numeric"><label for="rough">Rugosidad relativa, ε/D o ε/Dₕ [–]</label><div class="number-controls"><input id="rough" inputmode="decimal" value="0,001"><input type="range" id="rough-slider" data-field="rough" min="0" max="1000" step="1" aria-label="Ajustar la rugosidad relativa"></div></div>
 </div>
 <div id="physical" hidden>
 <fieldset><legend>Geometría</legend>
 <label>Sección<select id="shape"><option value="circle">Circular · D</option><option value="hydraulic">No circular · Dₕ conocido</option><option value="section">No circular · A y ℘ conocidos</option></select></label>
-<div class="numeric" id="d-row"><label for="d"><span id="d-label">Diámetro interior, D [m]</span></label><div class="number-controls"><input id="d" inputmode="decimal" value="0,1"><button type="button" data-step="-1" aria-label="Disminuir el diámetro">▾</button><button type="button" data-step="1" aria-label="Aumentar el diámetro">▴</button></div></div>
-<div class="numeric" id="area-row" hidden><label for="area">Área transversal, A [m²]</label><div class="number-controls"><input id="area" inputmode="decimal" placeholder="Ej. 0,01"><button type="button" data-step="-1" aria-label="Disminuir el área">▾</button><button type="button" data-step="1" aria-label="Aumentar el área">▴</button></div></div>
-<div class="numeric" id="perimeter-row" hidden><label for="perimeter">Perímetro mojado, ℘ [m]</label><div class="number-controls"><input id="perimeter" inputmode="decimal" value="0,4"><button type="button" data-step="-1" aria-label="Disminuir el perímetro mojado">▾</button><button type="button" data-step="1" aria-label="Aumentar el perímetro mojado">▴</button></div></div>
-<div class="numeric"><label for="epsilon">Rugosidad absoluta, ε [m]</label><div class="number-controls"><input id="epsilon" inputmode="decimal" value="0,0001"><button type="button" data-step="-1" aria-label="Disminuir la rugosidad absoluta">▾</button><button type="button" data-step="1" aria-label="Aumentar la rugosidad absoluta">▴</button></div></div>
+<div class="numeric" id="d-row"><label for="d"><span id="d-label">Diámetro interior, D [m]</span></label><div class="number-controls"><input id="d" inputmode="decimal" value="0,1"><input type="range" id="d-slider" data-field="d" min="0" max="1000" step="1" aria-label="Ajustar el diámetro"></div></div>
+<div class="numeric" id="area-row" hidden><label for="area">Área transversal, A [m²]</label><div class="number-controls"><input id="area" inputmode="decimal" placeholder="Ej. 0,01"><input type="range" id="area-slider" data-field="area" min="0" max="1000" step="1" aria-label="Ajustar el área"></div></div>
+<div class="numeric" id="perimeter-row" hidden><label for="perimeter">Perímetro mojado, ℘ [m]</label><div class="number-controls"><input id="perimeter" inputmode="decimal" value="0,4"><input type="range" id="perimeter-slider" data-field="perimeter" min="0" max="1000" step="1" aria-label="Ajustar el perímetro mojado"></div></div>
+<div class="numeric"><label for="epsilon">Rugosidad absoluta, ε [m]</label><div class="number-controls"><input id="epsilon" inputmode="decimal" value="0,0001"><input type="range" id="epsilon-slider" data-field="epsilon" min="0" max="1000" step="1" aria-label="Ajustar la rugosidad absoluta"></div></div>
 </fieldset>
 <fieldset><legend>Flujo</legend>
 <label>Magnitud conocida<select id="flow"><option value="v">Velocidad media V</option><option value="q">Caudal Q</option></select></label>
-<div class="numeric" id="v-row"><label for="v">Velocidad media, V [m/s]</label><div class="number-controls"><input id="v" inputmode="decimal" value="1"><button type="button" data-step="-1" aria-label="Disminuir la velocidad">▾</button><button type="button" data-step="1" aria-label="Aumentar la velocidad">▴</button></div></div>
-<div class="numeric" id="q-row" hidden><label for="q">Caudal, Q [m³/s]</label><div class="number-controls"><input id="q" inputmode="decimal" value="0,007854"><button type="button" data-step="-1" aria-label="Disminuir el caudal">▾</button><button type="button" data-step="1" aria-label="Aumentar el caudal">▴</button></div></div>
+<div class="numeric" id="v-row"><label for="v">Velocidad media, V [m/s]</label><div class="number-controls"><input id="v" inputmode="decimal" value="1"><input type="range" id="v-slider" data-field="v" min="0" max="1000" step="1" aria-label="Ajustar la velocidad"></div></div>
+<div class="numeric" id="q-row" hidden><label for="q">Caudal, Q [m³/s]</label><div class="number-controls"><input id="q" inputmode="decimal" value="0,007854"><input type="range" id="q-slider" data-field="q" min="0" max="1000" step="1" aria-label="Ajustar el caudal"></div></div>
 </fieldset>
 <fieldset><legend>Fluido</legend>
 <label>Tipo de fluido<select id="fluid"><option value="custom">Personalizado</option><option value="air">Aire</option><option value="water">Agua</option></select></label>
 <p id="fluid-properties" class="muted" hidden></p>
 <div id="custom-fluid">
 <label>Viscosidad conocida<select id="viscosity"><option value="nu">Cinemática ν</option><option value="mu">Dinámica μ y densidad ρ</option></select></label>
-<div class="numeric" id="nu-row"><label for="nu">Viscosidad cinemática, ν [m²/s]</label><div class="number-controls"><input id="nu" inputmode="decimal" value="1e-6"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad cinemática">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad cinemática">▴</button></div></div>
+<div class="numeric" id="nu-row"><label for="nu">Viscosidad cinemática, ν [m²/s]</label><div class="number-controls"><input id="nu" inputmode="decimal" value="1e-6"><input type="range" id="nu-slider" data-field="nu" min="0" max="1000" step="1" aria-label="Ajustar la viscosidad cinemática"></div></div>
 <div id="mu-row" hidden>
-<div class="numeric"><label for="mu">Viscosidad dinámica, μ [Pa·s]</label><div class="number-controls"><input id="mu" inputmode="decimal" value="0,001"><button type="button" data-step="-1" aria-label="Disminuir la viscosidad dinámica">▾</button><button type="button" data-step="1" aria-label="Aumentar la viscosidad dinámica">▴</button></div></div>
-<div class="numeric"><label for="rho">Densidad, ρ [kg/m³]</label><div class="number-controls"><input id="rho" inputmode="decimal" value="1000"><button type="button" data-step="-1" aria-label="Disminuir la densidad">▾</button><button type="button" data-step="1" aria-label="Aumentar la densidad">▴</button></div></div>
+<div class="numeric"><label for="mu">Viscosidad dinámica, μ [Pa·s]</label><div class="number-controls"><input id="mu" inputmode="decimal" value="0,001"><input type="range" id="mu-slider" data-field="mu" min="0" max="1000" step="1" aria-label="Ajustar la viscosidad dinámica"></div></div>
+<div class="numeric"><label for="rho">Densidad, ρ [kg/m³]</label><div class="number-controls"><input id="rho" inputmode="decimal" value="1000"><input type="range" id="rho-slider" data-field="rho" min="0" max="1000" step="1" aria-label="Ajustar la densidad"></div></div>
 </div>
 </div>
 </fieldset>
 </div>
 <button type="submit">Calcular f</button>
-<small>Admite coma o punto decimal y notación científica.</small>
+<small>Escribe el valor exacto o ajústalo con el deslizador. Admite coma o punto decimal y notación científica.</small>
 </form>
 <section class="panel">
 <h2>Resultado</h2>
@@ -293,30 +293,45 @@
     const invalid = form.querySelector('[aria-invalid]');
     if (invalid) invalid.focus();
   });
-  form.addEventListener('click', event => {
-    const button = event.target.closest('button[data-step]');
-    if (!button) return;
-    const input = button.parentElement.querySelector('input');
-    const isRoughness = input.id === 'rough' || input.id === 'epsilon';
-    const seeds = {rough: .0001, epsilon: .00001, area: .01};
-    const start = seeds[input.id] || decimal(input.defaultValue);
+  const sliders = Array.from(form.querySelectorAll('input[data-field]'));
+  const sliderBounds = new Map();
+
+  function syncSlider(slider) {
+    const id = slider.dataset.field;
+    const input = get(id);
     const current = decimal(input.value);
-    const direction = Number(button.dataset.step);
-    if (isRoughness && current === 0 && direction < 0) return;
-    let next = start;
-    if (Number.isFinite(current) && current > 0) {
-      const exponent = Math.floor(log(current));
-      const base = 10 ** exponent;
-      const step = base / (direction < 0 && current === base ? 100 : 10);
-      next = current + direction * step;
-      if (isRoughness && direction < 0 && current <= start) next = 0;
+    const zeroAllowed = id === 'rough' || id === 'epsilon';
+    const fallback = decimal(input.defaultValue) || .01;
+    const center = Number.isFinite(current) && current > 0 ? current : fallback;
+    const low = Math.max(-323, log(center) - 2);
+    const high = Math.min(id === 'rough' ? log(.05) : log(Number.MAX_VALUE) - 1e-10,
+      Math.max(low + .01, log(center) + 2));
+    const floor = Math.min(low, high - .01);
+    const first = zeroAllowed ? 1 : 0;
+    sliderBounds.set(slider, {low: floor, high, first});
+    slider.value = zeroAllowed && current === 0 ? 0
+      : Math.round(first + (1000 - first) * (log(center) - floor) / (high - floor));
+    slider.setAttribute('aria-valuetext', input.value || 'Sin valor');
+  }
+
+  for (const slider of sliders) syncSlider(slider);
+  form.addEventListener('input', event => {
+    const control = event.target;
+    if (sliderBounds.has(control)) {
+      const bounds = sliderBounds.get(control);
+      const position = Number(control.value);
+      const fraction = (position - bounds.first) / (1000 - bounds.first);
+      const n = bounds.first && position === 0 ? 0
+        : 10 ** (bounds.low + fraction * (bounds.high - bounds.low));
+      const input = get(control.dataset.field);
+      input.value = format(n);
+      control.setAttribute('aria-valuetext', input.value);
+    } else {
+      const slider = get(control.id + '-slider');
+      if (slider) syncSlider(slider);
     }
-    if (input.id === 'rough' && direction > 0 && current <= .05) next = Math.min(.05, next);
-    if (!Number.isFinite(next) || (!isRoughness && next <= 0)) return;
-    input.value = String(Number(next.toPrecision(15))).replace('.', ',');
     refresh();
   });
-  form.addEventListener('input',refresh);
   form.addEventListener('change',refresh);
   svg.addEventListener('pointermove',event => {
     const p = svg.createSVGPoint();
