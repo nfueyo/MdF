@@ -7,6 +7,7 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#edf2f5;color:#173144;font:16px system-ui,sans-serif}main{max-width:1380px;margin:auto;padding:clamp(12px,3vw,38px)}header{margin-bottom:22px}h1{font-size:clamp(30px,5vw,52px);margin:3px 0}h2{font-size:19px;margin:0 0 12px}p{margin:8px 0;line-height:1.5}.tag{color:#176b61;font-weight:bold;letter-spacing:.12em;font-size:12px}.layout{display:grid;grid-template-columns:minmax(270px,340px) minmax(0,1fr);gap:16px;align-items:start}.panel{background:white;border:1px solid #ccdbe3;border-radius:16px;padding:18px}fieldset{border:0;border-top:1px solid #ccdbe3;margin:14px 0 0;padding:5px 0 0}legend{font-size:13px;color:#176b61;font-weight:750}label{display:block;margin:9px 0;font-size:14px;font-weight:650}input,select,button{display:block;width:100%;padding:8px;margin-top:4px;font:inherit;color:inherit;background:#f6fafc;border:1px solid #8fa9b8;border-radius:7px}button{margin-top:14px;background:#146a61;color:white;font-weight:bold;cursor:pointer}:focus-visible{outline:2px solid #146a61;outline-offset:2px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px}.metrics div{padding:10px;background:#edf6f3;border-radius:7px;font-size:13px}.metrics strong{display:block;font-size:20px;overflow-wrap:anywhere}.scroll{overflow:auto}svg{display:block;width:100%;min-width:620px;height:auto}svg text{font:13px system-ui;fill:#284657}.error{color:#a22519}[aria-invalid=true]{border-color:#a22519}.muted,small{color:#486273}.chart{margin-top:20px}[hidden]{display:none!important}details{margin-top:16px}summary{cursor:pointer;font-weight:650}@media(max-width:850px){.layout{grid-template-columns:1fr}}
 .numeric label{margin-bottom:0}.number-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(82px,.8fr);align-items:center;gap:10px;margin-top:4px}.number-controls input{margin:0}.number-controls input[type=range]{padding:0;accent-color:#146a61;cursor:pointer}
+#plot3d{min-width:0;touch-action:none;cursor:grab;background:#f5f9fb;border-radius:10px}#plot3d:active{cursor:grabbing}#reset3d{width:auto;padding:6px 12px;font-size:14px}
 </style>
 </head>
 <body>
@@ -66,6 +67,14 @@
 <div class="scroll"><svg id="plot" viewBox="0 0 850 480" role="img" aria-label="Diagrama de Moody" tabindex="0"></svg></div>
 <p id="readout" class="muted">Mueve el puntero sobre el gráfico o usa ← y → con el gráfico enfocado.</p>
 <small>Azul · laminar. Franja ámbar · transición. Verde · curvas turbulentas. Rojo · caso calculado.</small>
+</div>
+<div class="chart">
+<h2>Superficie de Moody en 3D</h2>
+<p class="muted">Arrastra para girar. También puedes enfocar el gráfico y usar las teclas de flecha.</p>
+<svg id="plot3d" viewBox="0 0 850 560" role="img" aria-label="Superficie 3D del factor de Darcy. Arrastra para girar o usa las flechas del teclado." tabindex="0"></svg>
+<button type="button" id="reset3d">Restablecer vista</button>
+<p id="status3d" class="muted"></p>
+<small>Re y f en escala logarítmica. La rugosidad usa log(1 + r/10⁻⁶) para incluir r = 0. Azul · laminar. Verde · Colebrook–White. Rojo · caso calculado.</small>
 </div>
 <details><summary>Ecuaciones y alcance</summary>
 <p>Re = VD/ν o VDₕ/ν, con Dₕ = 4A/℘, V = Q/A y ν = μ/ρ.</p>
@@ -247,6 +256,149 @@
     write('readout',hint);
   }
 
+  const space = get('plot3d');
+  const defaultCamera = {yaw: -.45, pitch: -.115};
+  const camera = {...defaultCamera};
+  let surface = [], axes3d = [], marker3d = null, drag3d = null;
+
+  // Logarithmic roughness coordinate includes the hydraulically smooth limit r = 0.
+  const roughCoordinate = r => Math.log1p(r / 1e-6) / Math.log1p(.05 / 1e-6);
+
+  function build3d(result) {
+    const bounds = scale;
+    const normalize = (re, r, f) => [
+      2 * (log(re) - bounds.xmin) / (bounds.xmax - bounds.xmin) - 1,
+      2 * roughCoordinate(r) - 1,
+      2 * (log(f) - bounds.ymin) / (bounds.ymax - bounds.ymin) - 1
+    ];
+    const roughness = t => 1e-6 * Math.expm1(t * Math.log1p(.05 / 1e-6));
+    surface = [];
+    const bands = [
+      {a: Math.max(bounds.xmin, log(64)-bounds.ymax), b: Math.min(log(lower), log(64)-bounds.ymin), laminar: true},
+      {a: log(upper), b: Math.min(bounds.xmax, log(Number.MAX_VALUE) - 1e-10), laminar: false}
+    ];
+    for (const band of bands) {
+      if (band.a >= band.b) continue;
+      const rows = [];
+      for (let i = 0; i <= 44; i++) {
+        const re = 10 ** (band.a + (band.b - band.a) * i / 44);
+        const row = [];
+        for (let j = 0; j <= 24; j++) {
+          const r = roughness(j / 24);
+          const f = band.laminar ? 64 / re : colebrook(re, r);
+          row.push(normalize(re, r, f));
+        }
+        rows.push(row);
+      }
+      for (let i = 0; i < 44; i++) {
+        for (let j = 0; j < 24; j++) {
+          const vertices = [rows[i][j], rows[i+1][j], rows[i+1][j+1], rows[i][j+1]];
+          const height = vertices.reduce((sum, v) => sum + v[2], 0) / 4;
+          surface.push({vertices, laminar: band.laminar, height});
+        }
+      }
+    }
+    axes3d = [
+      {a: [-1,-1,-1], b: [1,-1,-1], name: 'Re [–] · log', ticks: []},
+      {a: [1,-1,-1], b: [1,1,-1], name: 'ε/D o ε/Dₕ [–]', ticks: []},
+      {a: [-1,-1,-1], b: [-1,-1,1], name: 'f Darcy [–] · log', ticks: []}
+    ];
+    const xStep = Math.ceil((bounds.xmax - bounds.xmin) / 5);
+    for (let n = Math.ceil(bounds.xmin / xStep) * xStep; n <= bounds.xmax; n += xStep) {
+      axes3d[0].ticks.push({p: [2*(n-bounds.xmin)/(bounds.xmax-bounds.xmin)-1,-1,-1], text: power(n)});
+    }
+    for (const r of [0, .00001, .0001, .001, .01, .05]) {
+      axes3d[1].ticks.push({p: [1,2*roughCoordinate(r)-1,-1], text: format(r)});
+    }
+    const zStep = Math.max(1, Math.ceil((bounds.ymax-bounds.ymin)/4));
+    for (let n = Math.ceil(bounds.ymin/zStep)*zStep; n <= bounds.ymax; n += zStep) {
+      axes3d[2].ticks.push({p: [-1,-1,2*(n-bounds.ymin)/(bounds.ymax-bounds.ymin)-1], text: power(n)});
+    }
+    marker3d = result && result.f !== null ? normalize(result.re,result.r,result.f) : null;
+    write('status3d', !result ? 'Introduce datos válidos para situar el punto.'
+      : result.f === null ? 'Transición: el hueco entre superficies refleja la incertidumbre de f.'
+      : '● Re = ' + format(result.re) + ' · r = ' + format(result.r) + ' · f = ' + format(result.f) +
+        (result.noncircular ? ' · aproximación con Dₕ' : ''));
+    render3d();
+  }
+
+  function project3d(p) {
+    const x = p[0]*Math.cos(camera.yaw) - p[1]*Math.sin(camera.yaw);
+    const depth = p[0]*Math.sin(camera.yaw) + p[1]*Math.cos(camera.yaw);
+    return {
+      x: 425 + 150*x,
+      y: 280 + 150*(depth*Math.sin(camera.pitch) - p[2]*Math.cos(camera.pitch)),
+      depth: depth*Math.cos(camera.pitch) + p[2]*Math.sin(camera.pitch)
+    };
+  }
+
+  function render3d() {
+    const polygons = surface.map(face => {
+      const points = face.vertices.map(project3d);
+      return {face, points, depth: points.reduce((sum,p) => sum+p.depth,0)/4};
+    }).sort((a,b) => a.depth-b.depth);
+    let html = '';
+    for (const polygon of polygons) {
+      const light = Math.max(36,Math.min(75,54+polygon.face.height*9));
+      const color = polygon.face.laminar ? 'hsl(214,48%,'+light+'%)' : 'hsl(169,45%,'+light+'%)';
+      html += '<polygon points="'+polygon.points.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ')+
+        '" fill="'+color+'" stroke="#ffffff" stroke-opacity=".16" stroke-width=".55"/>';
+    }
+    for (const axis of axes3d) {
+      const a = project3d(axis.a), b = project3d(axis.b);
+      html += line(a.x,a.y,b.x,b.y,'#294958','stroke-width="1.6"');
+      for (const tick of axis.ticks) {
+        const p = project3d(tick.p);
+        html += line(p.x,p.y,p.x,p.y+5,'#294958')+
+          label(p.x,p.y+19,tick.text,'text-anchor="middle" paint-order="stroke" stroke="white" stroke-width="3"');
+      }
+      const end = axis.b.map((n,i) => n + (axis.b[i]-axis.a[i])*.11);
+      const p = project3d(end);
+      html += label(p.x,p.y-8,axis.name,'text-anchor="middle" font-weight="bold" paint-order="stroke" stroke="white" stroke-width="4"');
+    }
+    if (marker3d) {
+      const p = project3d(marker3d), base = project3d([marker3d[0],marker3d[1],-1]);
+      const reAxis = project3d([marker3d[0],-1,-1]);
+      const roughnessAxis = project3d([1,marker3d[1],-1]);
+      const guideStyle = 'stroke-dasharray="4 4" stroke-width="1.6"';
+      html += line(base.x,base.y,p.x,p.y,'#b43b22',guideStyle)+
+        line(base.x,base.y,reAxis.x,reAxis.y,'#b43b22',guideStyle)+
+        line(base.x,base.y,roughnessAxis.x,roughnessAxis.y,'#b43b22',guideStyle)+
+        dot(p.x,p.y,7,'#b43b22');
+    }
+    space.innerHTML = html;
+  }
+
+  space.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    drag3d = {id:event.pointerId,x:event.clientX,y:event.clientY,yaw:camera.yaw,pitch:camera.pitch};
+    space.setPointerCapture(event.pointerId);
+  });
+  space.addEventListener('pointermove', event => {
+    if (!drag3d || event.pointerId !== drag3d.id) return;
+    camera.yaw = drag3d.yaw + (event.clientX-drag3d.x)*.008;
+    camera.pitch = Math.max(-1.2,Math.min(1.2,drag3d.pitch + (event.clientY-drag3d.y)*.008));
+    render3d();
+  });
+  const stopRotation = () => { drag3d = null; };
+  space.addEventListener('pointerup',stopRotation);
+  space.addEventListener('pointercancel',stopRotation);
+  space.addEventListener('lostpointercapture',stopRotation);
+  space.addEventListener('keydown', event => {
+    const changes = {ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.08],ArrowDown:[0,.08]};
+    const change = changes[event.key];
+    if (!change) return;
+    event.preventDefault();
+    camera.yaw += change[0];
+    camera.pitch = Math.max(-1.2,Math.min(1.2,camera.pitch+change[1]));
+    render3d();
+  });
+  get('reset3d').addEventListener('click', () => {
+    camera.yaw = defaultCamera.yaw;
+    camera.pitch = defaultCamera.pitch;
+    render3d();
+  });
+
   function refresh() {
     const physical = value('method') === 'physical', shape = value('shape');
     const useQ = value('flow') === 'q', useMu = value('viscosity') === 'mu';
@@ -285,6 +437,7 @@
     write('result-rough',state ? format(state.r) : '—');
     write('derived',state ? state.derived : '');
     plot(state);
+    build3d(state);
   }
 
   form.addEventListener('submit',event => {
