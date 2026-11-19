@@ -1,0 +1,133 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cuña lineal · fluidos!</title><style>
+:root{--blue:#1684bd;--navy:#17364a;--ink:#223b4d;--muted:#718796;--line:#dce8ee;--bg:#f3f8fb;--red:#d66b57;--green:#248c73}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:var(--ink)}main{max-width:1500px;margin:auto;padding:20px;display:grid;grid-template-columns:325px minmax(0,1fr);gap:18px}.panel{background:white;border:1px solid var(--line);border-radius:13px;padding:19px;box-shadow:0 3px 14px #183c5310}h2{font-size:15px;margin:0 0 15px;color:var(--navy)}h3{font-size:13px;margin:20px 0 10px;color:var(--blue);text-transform:uppercase;letter-spacing:.06em}.control{margin-bottom:18px}.control label{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:8px}.control strong{color:var(--navy);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--blue)}.ends{display:flex;justify-content:space-between;color:#91a1ab;font-size:10px}.results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:15px}.metric{border:1px solid var(--line);border-radius:10px;padding:13px;min-width:0}.metric span{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.metric strong{display:block;font-size:20px;color:var(--navy);font-variant-numeric:tabular-nums}.metric small{color:var(--muted);font-size:11px}.plots{display:grid;grid-template-columns:1fr 1fr;gap:14px}.wide{grid-column:1/-1}.chart{border:1px solid var(--line);border-radius:11px;padding:12px;min-width:0}.chart h2{margin:2px 3px 8px}.chart canvas{display:block;width:100%;height:270px}.chart.wide canvas{height:240px}.note{font-size:12px;line-height:1.55;color:var(--muted)}.checks{display:grid;grid-template-columns:1fr 1fr;gap:12px}.check{border:1px solid var(--line);padding:12px;border-radius:10px}.check strong{font-size:19px;display:block;margin:5px 0}.ok{color:var(--green)}.warn{color:var(--red)}table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;padding:9px;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-variant-numeric:tabular-nums}button{background:#edf6fb;color:var(--blue);border:1px solid #cbe2ee;border-radius:7px;padding:8px 12px;cursor:pointer}button:hover{background:#dbeefa}.formula{background:#f5f9fb;padding:12px;border-radius:8px;font-family:Georgia,serif;line-height:1.8;font-size:14px}#sectionSlider{width:100%;accent-color:var(--blue)}@media(max-width:1050px){main{grid-template-columns:1fr}.results{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.plots,.checks{grid-template-columns:1fr}.wide{grid-column:auto}.results{grid-template-columns:1fr 1fr}.metric strong{font-size:17px}}
+header{margin-bottom:20px}.tag{color:var(--teal);font-size:12px;font-weight:800;letter-spacing:.13em}h1{font-size:clamp(29px,4vw,46px);line-height:1.08;margin:5px 0 8px;letter-spacing:-.03em}.sub{color:var(--muted);max-width:850px}.author-footer{margin-top:16px;text-align:left;font-size:12px;line-height:1.45;color:#526b79}
+body{background:#edf3f6;color:#173144;font:16px system-ui,-apple-system,sans-serif}
+.shell{--teal:#14766e;max-width:1420px;margin:auto;padding:clamp(14px,2.5vw,34px)}
+main{padding:0;grid-template-columns:minmax(235px,310px) minmax(0,1fr);align-items:start}
+.chart.schematic{padding:3px;background:#f7fafb}
+.chart.schematic canvas{height:420px}
+.ends.pressure-ends{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}.pressure-ends span:last-child{text-align:right}.pressure-ends .pressure-zero{padding:3px 9px;min-height:26px;font-size:11px}
+.pressure-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}.pressure-actions .note{margin:0}.pressure-actions button:disabled{opacity:.55;cursor:default}
+.section-control{display:block;margin-top:10px;font-size:13px}
+@media(max-width:950px){main{grid-template-columns:1fr}}
+@media(max-width:520px){.panel{padding:12px}.chart.schematic canvas{height:380px}.checks{grid-template-columns:1fr}}
+</style></head><body><div class="shell"><header><div class="tag">MECÁNICA DE FLUIDOS · LUBRICACIÓN</div><h1>Cuña lineal</h1><p class="sub">Explora cómo la geometría de la cuña, el movimiento de la placa inferior y la diferencia de presión determinan el flujo y la sustentación.</p></header><main><aside class="panel"><h2>Parámetros del problema</h2><h3>Geometría</h3><div id="controls"></div><button id="reset">Restablecer valores</button><p class="note">Δp = p₁ − p₀. Se toma p₀ = 0 Pa como referencia manométrica. Las fuerzas y el caudal son por unidad de anchura (dirección z).</p></aside><div><div class="results"><div class="metric"><span>Sustentación Fᵧ / b</span><strong id="lift">—</strong><small>N/m · respecto a p₀</small></div><div class="metric"><span>Fuerza motora Fₓ / b</span><strong id="drag">—</strong><small>N/m · signo según +x</small></div><div class="metric"><span>Potencia motora / b</span><strong id="power">—</strong><small>W/m · Fₓ U</small></div><div class="metric"><span>Caudal qₓ</span><strong id="flow">—</strong><small>m²/s</small></div></div><div class="plots"><section class="panel wide"><h2>Placas y perfiles de velocidad y presión</h2>
+<div class="chart schematic"><canvas id="wedge" aria-label="Esquema de las placas con el perfil de velocidad entre ellas y la distribución de presión debajo, alineada en x"></canvas></div>
+<div class="pressure-actions"><button type="button" id="zeroGradient" aria-describedby="zeroGradientStatus">Ir a dp/dx = 0</button><span id="zeroGradientStatus" class="note" role="status"></span></div>
+<label class="section-control" for="sectionSlider">Sección x/L = <strong id="xloc">0.50</strong></label>
+<input type="range" id="sectionSlider" min="0" max="100" step="any" value="50">
+<p class="note" id="profileNote"></p>
+<p class="note">Las escalas del dibujo se ajustan a L y a la apertura. La dirección transversal se amplifica y se conserva la relación h₀/h₁. La gráfica de presión comparte la coordenada x del esquema. Su área firmada representa la sustentación por unidad de anchura.</p></section><section class="panel wide"><h2>Condiciones de validez de la teoría de lubricación</h2><div class="checks"><div class="check"><span>Esbeltez geométrica · H/L ≪ 1</span><strong id="geom">—</strong><span id="geomStatus"></span></div><div class="check"><span>Inercia / viscosidad · (ρ H U/μ)(H/L) ≪ 1</span><strong id="inertia">—</strong><span id="inertiaStatus"></span></div></div><p class="note">H = máx(h₀,h₁). El umbral 0,1 se utiliza únicamente como criterio orientativo, no como frontera exacta de validez. Si Δp genera velocidades mayores que |U|, se comprueba además el criterio con una velocidad característica del fluido.</p><div id="extraCheck" class="note"></div></section><section class="panel wide"><h2>Órdenes de magnitud de los cuatro gradientes de velocidad</h2><table><thead><tr><th>Gradiente</th><th>Escala característica</th><th>Orden estimado (s⁻¹)</th></tr></thead><tbody id="gradients"></tbody></table><p class="note" id="gradNote"></p></section><section class="panel wide"><h2>Modelo y ecuaciones utilizadas</h2><div class="formula">h(x) = h₀ − (h₀ − h₁)x/L<br>qₓ = −h³/(12μ) · dp/dx + Uh/2 = constante<br>u(x,y) = [1/(2μ)] (dp/dx) y(y − h) + U(1 − y/h)<br>Fᵧ/b = ∫₀ᴸ [p(x) − p₀] dx<br>Fₓ/b = −∫₀ᴸ [μU/h + (h/2) dp/dx] dx ; &nbsp; potencia/b = (Fₓ/b)U</div><p class="note">La fuerza motora representa la fuerza externa necesaria para mantener el movimiento de la placa inferior. Se obtiene integrando el esfuerzo tangencial, con el signo de la ecuación (17.47). Se desprecian los efectos de borde, la cavitación y las correcciones de orden superior. Fuente: anexo, apartado 17.4.</p></section></div></div></main><footer class="author-footer">Norberto Fueyo<br>Área de Mecánica de Fluidos, Universidad de Zaragoza</footer></div><script>
+const defs=[['L','Longitud L','mm',10,300,100,1],['h0','Separación de entrada h₀','mm',.05,2,.30,.01],['dh','Convergencia Δh = h₀ − h₁','%',-90,90,50,1],['dp','Diferencia de presión Δp','kPa',-500,500,0,.5],['U','Velocidad placa inferior U','m/s',-5,5,1,.05],['mu','Viscosidad dinámica μ','Pa·s',.005,.5,.10,.005],['rho','Densidad ρ','kg/m³',500,1200,850,10]];let vals={};const controls=document.getElementById('controls');defs.forEach(([id,label,unit,min,max,def,step])=>{vals[id]=def;let div=document.createElement('div');div.className='control';div.innerHTML=`<label><span>${label}</span><strong id="val_${id}"></strong></label><input id="in_${id}" type="range" min="${min}" max="${max}" step="${step}" value="${def}"><div class="ends${id==='dp'?' pressure-ends':''}"><span>${min} ${unit}</span>${id==='dp'?'<button type="button" class="pressure-zero">Δp = 0</button>':''}<span>${max} ${unit}</span></div>`;
+controls.appendChild(div);
+const slider=div.querySelector('input');
+slider.oninput=()=>{vals[id]=+slider.value;update()};
+if(id==='dp'){
+  div.querySelector('.pressure-zero').onclick=()=>{
+    slider.value=0;
+    slider.oninput();
+  };
+}
+});document.getElementById('reset').onclick=()=>{defs.forEach(([id,,,,,def])=>{vals[id]=def;document.getElementById('in_'+id).value=def});document.getElementById('sectionSlider').value=50;update()};document.getElementById('sectionSlider').oninput=update;
+function fmt(x,n=3){if(!Number.isFinite(x))return '—';if(x===0)return '0';if(Math.abs(x)>=1e5||Math.abs(x)<.001)return x.toExponential(2);return Number(x.toPrecision(n)).toLocaleString('es-ES',{maximumFractionDigits:5})}function set(id,v){document.getElementById(id).textContent=v}function context(id){const c=document.getElementById(id),r=c.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);const g=c.getContext('2d');g.scale(d,d);return {g,w:r.width,h:r.height}}function line(g,pts,color='#1684bd',width=2,dash=[]){g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.strokeStyle=color;g.lineWidth=width;g.setLineDash(dash);g.stroke();g.setLineDash([])}function txt(g,s,x,y,color='#536d7e',size=12,align='left'){g.fillStyle=color;g.font=`${size}px system-ui`;g.textAlign=align;g.fillText(s,x,y)}function arrow(g,x,y,dx,dy,color='#1684bd'){line(g,[[x,y],[x+dx,y+dy]],color,1.6);let a=Math.atan2(dy,dx);line(g,[[x+dx,y+dy],[x+dx-7*Math.cos(a-.5),y+dy-7*Math.sin(a-.5)]],color,1.6);line(g,[[x+dx,y+dy],[x+dx-7*Math.cos(a+.5),y+dy-7*Math.sin(a+.5)]],color,1.6)}function integrate(f,N=600){let sum=f(0)+f(1);for(let i=1;i<N;i++)sum+=(i%2?4:2)*f(i/N);return sum/(3*N)}
+function update(){defs.forEach(([id,,unit])=>set('val_'+id,fmt(vals[id],4)+' '+unit));const L=vals.L/1000,h0=vals.h0/1000,h1=h0*(1-vals.dh/100),U=vals.U,mu=vals.mu,rho=vals.rho,dp=vals.dp*1000,dh=h0-h1;const h=t=>h0+(h1-h0)*t;let A,B;if(Math.abs(dh)<1e-12){A=L/h0**2;B=L/h0**3}else{A=L/(h0*h1);B=L*(h0+h1)/(2*h0*h0*h1*h1)}const q=(U*A/2-dp/(12*mu))/B;const grad=t=>12*mu*(U*h(t)/2-q)/h(t)**3;function press(t){let H=h(t),I2,I3;if(Math.abs(dh)<1e-12){I2=L*t/h0**2;I3=L*t/h0**3}else{I2=L/dh*(1/H-1/h0);I3=L/(2*dh)*(1/H**2-1/h0**2)}return 6*mu*U*I2-12*mu*q*I3}const u=(t,s)=>grad(t)*h(t)**2*s*(s-1)/(2*mu)+U*(1-s);let lift=L*integrate(press),motor=-L*integrate(t=>mu*U/h(t)+h(t)*grad(t)/2);set('lift',fmt(lift));set('drag',fmt(motor));set('power',fmt(motor*U));set('flow',fmt(q));const H=Math.max(h0,h1),eps=H/L,chi=rho*H*Math.abs(U)/mu*eps;set('geom',fmt(eps));set('inertia',fmt(chi));function status(id,v){let good=v<.1;let e=document.getElementById(id);e.textContent=good?'✓ Pequeño (criterio orientativo)':'⚠ No suficientemente pequeño';e.className=good?'ok':'warn'}status('geomStatus',eps);status('inertiaStatus',chi);let W=Math.max(Math.abs(U),Math.abs(q)/Math.min(h0,h1),...Array.from({length:51},(_,i)=>Math.abs(grad(i/50))*h(i/50)**2/mu));let chiW=rho*H*W/mu*eps;set('extraCheck','Velocidad característica estimada del fluido: '+fmt(W)+' m/s · criterio inercial ampliado: '+fmt(chiW)+(chiW>=.1?' ⚠':' ✓'));const speed=Math.abs(U);const scales=[['∂u/∂x','|U|/L',speed/L],['∂u/∂y','|U|/H',speed/H],['∂v/∂x','|U| H/L²',speed*H/L**2],['∂v/∂y','|U|/L',speed/L]];document.getElementById('gradients').innerHTML=scales.map(([a,b,c])=>`<tr><td>${a}</td><td>${b}</td><td>${fmt(c)}</td></tr>`).join('');set('gradNote','Escalas basadas en la velocidad de la placa |U| = '+fmt(speed)+' m/s, H = '+fmt(H*1000)+' mm y |v| ∼ |U| H/L. Cuando domina Δp, los gradientes reales pueden ser mayores.');const sectionSlider=document.getElementById('sectionSlider');
+const zeroButton=document.getElementById('zeroGradient');
+const {position,message}=stationaryPressureSection(h0,h1,U,q,dp);
+zeroButton.disabled=position===null;
+zeroButton.onclick=()=>{
+  sectionSlider.value=100*position;
+  update();
+};
+if(document.getElementById('zeroGradientStatus').textContent!==message)
+  set('zeroGradientStatus',message);
+let t=+sectionSlider.value/100;set('xloc',t.toFixed(2));set('profileNote','h = '+fmt(h(t)*1000)+' mm · dp/dx = '+fmt(grad(t))+' Pa/m · p − p₀ = '+fmt(press(t)/1000)+' kPa · u(y=0) = '+fmt(U)+' m/s · u(y=h) = 0');drawWedge({L,h,u,U,press,t})}
+function stationaryPressureSection(h0,h1,U,q,dp) {
+  if(dp===0 && (h0===h1 || U===0))
+    return {position:null,message:'La presión es constante en toda la cuña.'};
+
+  // dp/dx vanishes where the Couette flux Uh/2 equals the total flux q.
+  const delta=h1-h0;
+  if(delta!==0 && U!==0){
+    const position=(2*q/U-h0)/delta;
+    const tolerance=1e-12;
+    if(position>=-tolerance && position<=1+tolerance)
+      return {position:Math.min(1,Math.max(0,position)),message:''};
+  }
+  return {position:null,message:'La pendiente no se anula entre las placas.'};
+}
+
+function drawWedge({L,h,u,U,press,t}) {
+  const {g,w,h:height}=context('wedge');
+  const teal='#14766e', red='#bd5847', blue='#2364a5', ink='#365363', pale='#a9bdc8';
+  const left=w<400?55:76, right=w-36, span=right-left;
+  // A common horizontal mapping keeps both plots aligned while leaving short plates readable.
+  const length=span*(.34+.66*Math.log(L/.01)/Math.log(30));
+  const x0=(left+right-length)/2, x1=x0+length;
+  const X=s=>x0+s*length;
+  const y0=height*.49, maxGap=Math.max(h(0),h(1));
+  const gap=32+(y0-56)*Math.sqrt(maxGap/.0038);
+  const top=s=>y0-gap*h(s)/maxGap;
+  const xs=X(t);
+
+  g.fillStyle='#e7f4f7';
+  g.beginPath();
+  g.moveTo(x0,top(0));g.lineTo(x1,top(1));g.lineTo(x1,y0);g.lineTo(x0,y0);
+  g.closePath();g.fill();
+  txt(g,'Perfil u(y) · m/s',left,20,teal,12);
+  line(g,[[xs,top(t)],[xs,y0]],pale,1,[4,3]);
+  const velocities=Array.from({length:101},(_,i)=>u(t,i/100));
+  const peak=Math.max(...velocities.map(Math.abs),1e-12);
+  const dx=v=>v/peak*Math.min(length*.38,76,xs-10,w-xs-10);
+  const Y=s=>y0-s*(y0-top(t));
+  line(g,velocities.map((v,i)=>[xs+dx(v),Y(i/100)]),teal,2.5);
+  for(let i=1;i<8;i++){
+    const s=i/8, d=dx(u(t,s));
+    if(Math.abs(d)>5) arrow(g,xs,Y(s),d,0,d>0?teal:red);
+  }
+  line(g,[[x0,top(0)],[x1,top(1)]],ink,4);
+  line(g,[[x0,y0],[x1,y0]],ink,5);
+  for(const [s,label,side] of [[0,'h₀',-1],[1,'h₁',1]]){
+    const x=X(s)+side*10, yt=top(s);
+    line(g,[[x,yt],[x,y0]],pale,1);
+    line(g,[[x-3,yt],[x+3,yt]],ink,1);
+    line(g,[[x-3,y0],[x+3,y0]],ink,1);
+    txt(g,label,x+side*5,(yt+y0)/2+4,ink,12,side<0?'right':'left');
+  }
+  if(U!==0) arrow(g,(x0+x1)/2-18*Math.sign(U),y0+14,36*Math.sign(U),0,red);
+  txt(g,U===0?'U = 0':'U',(x0+x1)/2+22,y0+18,red,12);
+  const dimY=y0+35;
+  line(g,[[x0,dimY],[x1,dimY]],pale,1);
+  for(const x of [x0,x1]) line(g,[[x,dimY-4],[x,dimY+4]],ink,1);
+  const label='L = '+fmt(L*1000)+' mm';
+  g.font='12px system-ui';
+  const labelWidth=g.measureText(label).width+10;
+  g.fillStyle='#f7fafb';g.fillRect((x0+x1-labelWidth)/2,dimY-8,labelWidth,16);
+  txt(g,label,(x0+x1)/2,dimY+4,ink,12,'center');
+
+  const plotTop=y0+79, bottom=height-29;
+  txt(g,'Presión p − p₀ · kPa',left,plotTop-14,blue,12);
+  const pressures=Array.from({length:301},(_,i)=>press(i/300)/1000);
+  const lo=Math.min(0,...pressures), hi=Math.max(0,...pressures);
+  const pad=(hi-lo)*.09||1;
+  const py=p=>bottom-(p-lo+pad)/(hi-lo+2*pad)*(bottom-plotTop);
+  const zero=py(0);
+  const points=pressures.map((p,i)=>[X(i/300),py(p)]);
+  g.beginPath();g.moveTo(x0,zero);
+  points.forEach(([x,y])=>g.lineTo(x,y));
+  g.lineTo(x1,zero);g.closePath();
+  g.fillStyle='#2364a526';g.fill();
+  for(const x of [x0,x1]) line(g,[[x,plotTop],[x,bottom]],pale,1);
+  line(g,[[x0,zero],[x1,zero]],pale,1,[4,3]);
+  line(g,[[xs,plotTop],[xs,bottom]],teal,1,[4,3]);
+  line(g,points,blue,2.5);
+  for(const p of [lo,0,hi].filter((p,i,a)=>a.indexOf(p)===i)){
+    if(p!==0&&Math.abs(py(p)-zero)<14) continue;
+    txt(g,fmt(p),x0-6,py(p)+4,ink,11,'right');
+  }
+  g.beginPath();g.arc(xs,py(press(t)/1000),4,0,2*Math.PI);
+  g.fillStyle=teal;g.fill();
+  txt(g,'0',x0,bottom+16,ink,11,'center');
+  txt(g,'L',x1,bottom+16,ink,11,'center');
+  txt(g,'x',(x0+x1)/2,bottom+16,ink,12,'center');
+}
+window.addEventListener('resize',update);update();</script></body></html>
