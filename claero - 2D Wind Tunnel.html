@@ -116,7 +116,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
 <section class="panel">
 <div class="toolbar"><h2>1 · Campo de flujo</h2>
 <div class="actions">
-<label>Campo <select id="field"><option value="pressure">Contornos de presión</option><option value="vorticity">Vorticidad</option><option value="speed">Velocidad</option></select></label>
+<label>Campo <select id="field"><option value="pressure">Contornos de presión</option><option value="vorticity" selected>Vorticidad</option><option value="speed">Velocidad</option></select></label>
 <label><input id="streams" type="checkbox" checked> Líneas de corriente</label>
 <label><input id="showMesh" type="checkbox"> Malla</label>
 </div></div>
@@ -175,7 +175,7 @@ const latticeWidths=[320,480,640,960,1280];
 const defaultsByMethod={lbm:1,fv:2};
 const resolutions={...defaultsByMethod};
 let NX, NY, activeMethod, worker, displayScale;
-const defaults = {re:160, angle:0, size:100, runMode:'transient', speed:10, rho:1.225, field:'pressure'};
+const defaults = {re:160, angle:0, size:100, runMode:'transient', speed:10, rho:1.225, field:'vorticity'};
 const format = (v, digits=2) => v.toLocaleString('es-ES',{minimumFractionDigits:digits, maximumFractionDigits:digits});
 let LENGTH, stepsPerResidence, averageStartStep, batchSize, bodyScale;
 let mesh, owner, steadySteps;
