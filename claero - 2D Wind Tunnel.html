@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GTA: Un túnel de viento virtual en HTML</title>
+<style>
+ 
+:root{color-scheme:light;--ink:#17334b;--blue:#087ca0;--muted:#597183;--line:#dce6eb;--bg:#f2f6f8;--drag:#a74d19;--lift:#08765e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1440px;margin:auto;padding:18px}
+header{background:#153b53;color:white;padding:22px max(24px,calc((100% - 1400px)/2));border-bottom:5px solid #18a7bd}
+header small{color:#9ee6ef;letter-spacing:2px}
+h1{font-size:clamp(23px,3vw,36px);margin:5px 0}
+header p{margin:0;color:#cde6ec}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:12px 0 6px}
+p{margin:6px 0}
+.note,p{color:var(--muted);font-size:13px}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr) 265px;gap:16px;align-items:start}
+.panel{background:white;border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.stack{display:grid;gap:16px;min-width:0}
+.palette{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+button,select,input[type=number]{font:inherit;color:inherit;background:#edf8fa;border:1px solid #99bfca;border-radius:6px;padding:7px 9px}
+button,select,input[type=range]{cursor:pointer}
+button:hover{background:#d8f0f3}
+button:disabled{opacity:.55;cursor:default}
+button[aria-pressed=true]{border-color:var(--blue);color:#07536c;background:#d8f0f3}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.palette button{display:grid;justify-items:center;align-content:center;gap:2px;min-width:0;font-size:12px;line-height:1.2;min-height:58px;padding:4px}
+.palette canvas{width:66px;height:27px}
+.controls label{display:block;margin:10px 0 4px;font-weight:600;font-size:13px}
+.controls output{float:right;color:var(--blue)}
+.controls select,.controls input[type=number]{width:100%;background:white}
+input[type=range]{display:block;width:100%;accent-color:var(--blue);margin:6px 0}
+.toolbar,.actions,.key{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.toolbar{justify-content:space-between;margin-bottom:10px}
+.toolbar h2{margin:0}
+.actions label{display:flex;align-items:center;gap:5px}
+#scene,#history{display:block;width:100%;height:auto;border-radius:8px;background:#f4f8fa}
+.key,.status{font-size:13px;color:var(--muted);margin-top:8px}
+#status.unstable{background:#a51d2a;color:white;border-radius:6px;padding:7px 10px;font-weight:600}
+.key .ramp{width:132px;height:9px;border-radius:3px}
+.force-table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;margin:8px 0}
+.force-table th,.force-table td{padding:6px;border-bottom:1px solid var(--line);text-align:right}
+.force-table th:first-child{text-align:left}
+.force-table tbody th{font-weight:600}
+.lift{color:var(--lift)}.drag{color:var(--drag)}
+details{font-size:14px}summary{cursor:pointer;color:var(--blue);margin-top:12px}
+.method-panel{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin-bottom:16px;border-top:3px solid var(--blue)}
+.method-panel label{font-weight:700}
+.method-panel select{width:min(100%,250px)}
+.method-panel p{flex:1 1 275px;margin:0}
+#methodHelp{min-width:38px;font-weight:750}
+dialog{width:min(92vw,620px);max-height:85vh;overflow:auto;border:1px solid var(--line);border-radius:12px;color:var(--ink);background:white;padding:20px}
+dialog::backdrop{background:#17334b99}
+dialog h3{color:var(--blue)}
+dialog p{font-size:14px}
+dialog form{margin-top:16px}
+.suggestions ol{padding-left:20px;margin:0}
+.suggestions li+li{margin-top:9px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+@media(max-width:1080px){.layout{grid-template-columns:260px minmax(0,1fr)}.suggestions{grid-column:2}}
+@media(max-width:780px){.layout{grid-template-columns:minmax(0,1fr)}.suggestions{grid-column:1}.palette{grid-template-columns:repeat(auto-fit,minmax(77px,1fr))}}
+@media(max-width:480px){main{padding:8px}.panel{padding:10px}.force-table{font-size:13px}}
+</style>
+</head>
+<body>
+<header><small>FLUIDOS! · MECÁNICA DE FLUIDOS</small><h1>GTA: Un túnel de viento virtual en HTML</h1><p>Compara cómo dos métodos numéricos calculan el flujo 2D, la estela y las fuerzas aerodinámicas.</p></header>
+<main>
+<section class="panel method-panel" aria-label="Método de cálculo">
+<label for="method">Método de solución</label>
+<select id="method"><option value="lbm">Lattice Boltzmann</option><option value="fv">Volúmenes Finitos</option></select>
+<button id="methodHelp" type="button" aria-label="Ayuda para elegir el método" aria-haspopup="dialog" aria-controls="methodDialog">?</button>
+<p id="methodSummary"></p>
+</section>
+<dialog id="methodDialog" aria-labelledby="methodHelpTitle">
+<h2 id="methodHelpTitle">¿Qué método elijo?</h2>
+<h3>Lattice Boltzmann</h3>
+<p>En cada paso, el método reparte pequeñas cantidades de fluido entre celdas vecinas de una malla regular. Es una buena primera opción para explorar la estela: cada paso evita resolver un problema de presión en todo el túnel. Si quieres más detalle cerca del objeto, el coste sube porque hay que refinar toda la malla. También hay un límite práctico de Reynolds para cada resolución.</p>
+<h3>Volúmenes Finitos</h3>
+<p>Divide el túnel en celdas y contabiliza cuánto fluido y cantidad de movimiento cruzan sus caras. Puede usar celdas pequeñas cerca del objeto y en la estela, donde interesa ver más detalle. En cada paso corrige la presión para conservar la masa, lo que puede tardar más. Permite buscar un estado estacionario si el flujo se estabiliza.</p>
+<p><strong>Para comparar:</strong> conserva el objeto, el ángulo y el Reynolds. Mira la estela y compara las fuerzas medias en el mismo intervalo de tiempo simulado. Cada método aproxima de forma distinta el objeto y los límites del túnel, así que puedes obtener valores diferentes. Cambiar de método reinicia el flujo. Si el Reynolds supera el máximo de la nueva malla, el selector lo ajusta. Prueba a refinar antes de sacar conclusiones.</p>
+<form method="dialog"><button autofocus>Cerrar</button></form>
+</dialog>
+<div class="layout">
+<aside class="panel">
+<h2>Objeto y condiciones del flujo</h2>
+<div class="palette" id="palette" role="group" aria-label="Objeto de ensayo"></div>
+<p id="shapeNote"></p>
+<div class="controls">
+<label for="re">Número de Reynolds <output id="reValue"></output></label>
+<input id="re" type="range" min="40" max="1000" value="160" step="10" aria-describedby="reNote">
+<p id="reNote">A Re alto, aumenta la resolución para captar la estela. En las mallas más finas, alcanzar 5 <i>t</i><sub>res</sub> puede llevar varios minutos. Una malla insuficiente puede producir fuerzas imprecisas o inestabilidad.</p>
+
+<label for="angle">Ángulo de ataque <output id="angleValue"></output></label>
+<input id="angle" type="range" min="-25" max="25" value="0" step="1">
+<label for="size">Escala del objeto <output id="sizeValue"></output></label>
+<input id="size" type="range" min="60" max="150" value="100" step="5">
+<label for="resolution">Finura de la malla <output id="resolutionValue"></output></label>
+<input id="resolution" type="range" min="1" max="5" step="1" value="2" aria-describedby="meshInfo">
+<div id="steadyOptions"><label for="runMode">Modo de cálculo</label>
+<select id="runMode"><option value="transient">Seguir la evolución temporal</option><option value="steady">Buscar estado estacionario</option></select>
+<p>El modo estacionario avanza en el tiempo y se detiene si el campo deja de cambiar apreciablemente durante un <i>t</i><sub>res</sub>.</p></div>
+<p id="meshInfo"></p>
+<p id="reLimit"></p>
+<details><summary>Unidades de las fuerzas</summary>
+<label for="speed">Velocidad exterior U∞ (m/s)</label><input type="number" id="speed" min=".01" step="any" value="10">
+<label for="rho">Densidad ρ (kg/m³)</label><input type="number" id="rho" min=".001" step="any" value="1.225">
+<p>La escala del 100 % corresponde a L = 1 m. La velocidad y la densidad convierten los coeficientes en fuerzas. El Re elegido fija la viscosidad cinemática, ν = U∞L/Re.</p></details>
+</div>
+<p><button id="defaults" type="button">Restaurar valores por defecto</button></p>
+</aside>
+<div class="stack">
+<section class="panel">
+<div class="toolbar"><h2>1 · Campo de flujo</h2>
+<div class="actions">
+<label>Campo <select id="field"><option value="pressure">Contornos de presión</option><option value="vorticity">Vorticidad</option><option value="speed">Velocidad</option></select></label>
+<label><input id="streams" type="checkbox" checked> Líneas de corriente</label>
+<label><input id="showMesh" type="checkbox"> Malla</label>
+</div></div>
+<canvas id="scene" width="960" height="384" role="img" aria-label="Flujo de izquierda a derecha alrededor del objeto seleccionado"></canvas>
+<div class="key"><span id="keyLow"></span><span class="ramp" id="ramp" aria-hidden="true"></span><span id="keyHigh"></span><span id="keyUnits"></span></div>
+<p>El cálculo parte del reposo. Al acelerarse el flujo de entrada, se forma la estela. Según el objeto y el número de Reynolds, el flujo puede estabilizarse o seguir variando, por ejemplo, si se desprenden vórtices periódicamente.</p>
+<p>El contador muestra <i>t</i>/<i>t</i><sub>res</sub>, el tiempo físico simulado expresado en tiempos de residencia. Un tiempo de residencia, <i>t</i><sub>res</sub> = <i>L</i><sub>objeto</sub>/<i>U</i><sub>∞</sub>, es el tiempo necesario para recorrer una longitud del objeto sin girar a la velocidad exterior. El tiempo que tarda el ordenador en calcularlo depende de la malla y del equipo.</p>
+<p>Los promedios de fuerzas y coeficientes empiezan a partir de <i>t</i> = 5 <i>t</i><sub>res</sub> para excluir el arranque. Activa «Malla» para ver cómo se distribuyen las celdas de cada método.</p>
+<div class="toolbar status">
+<div class="actions"><button id="toggle" type="button">Pausar</button><button id="step" type="button">Avanzar un cuadro</button><button id="reset" type="button">Reiniciar flujo</button></div>
+<span id="status" role="status">Iniciando el cálculo…</span>
+</div>
+</section>
+<section class="panel">
+<h2>2 · Fuerzas y coeficientes</h2>
+<table class="force-table">
+<thead><tr><th scope="col">Magnitud</th><th scope="col">Actual</th><th scope="col">Media reciente</th></tr></thead>
+<tbody>
+<tr><th scope="row" class="drag">Arrastre C<sub>D</sub></th><td id="drag">—</td><td id="meanDrag">—</td></tr>
+<tr><th scope="row" class="lift">Sustentación C<sub>L</sub></th><td id="lift">—</td><td id="meanLift">—</td></tr>
+<tr><th scope="row" class="drag">Arrastre (N/m)</th><td id="dragForce">—</td><td id="meanDragForce">—</td></tr>
+<tr><th scope="row" class="lift">Sustentación (N/m)</th><td id="liftForce">—</td><td id="meanLiftForce">—</td></tr>
+</tbody></table>
+<p>La media móvil abarca hasta un tiempo de residencia (<i>t</i><sub>res</sub>) y usa solo muestras posteriores a 5 <i>t</i><sub>res</sub>.</p>
+<p id="liftVariation">Oscilación de C<sub>L</sub> tras el arranque: —</p>
+<canvas id="history" width="960" height="250" role="img" aria-label="Evolución de los coeficientes de arrastre y sustentación"></canvas>
+<p>Fuerza por unidad de envergadura = C × ½ρU∞²L. L es la longitud de referencia del objeto sin girar. La sustentación positiva apunta hacia arriba.</p>
+<details><summary>Modelo y límites de aplicación</summary>
+<div id="lbmModel">
+<p>Lattice Boltzmann isotermo D2Q9 a bajo Mach, con dos tasas de relajación. Usa una malla uniforme, rebote en el objeto y límites transversales periódicos. Estima la presión a partir de pequeñas variaciones de densidad y la fuerza por intercambio de cantidad de movimiento con el contorno.</p>
+</div><div id="fvModel">
+<p>Volúmenes finitos sobre un quadtree 2D equilibrado 2:1. La malla se refina cerca de la geometría y, con menor finura, en la región de la estela. Cada segmento de cara compartido aporta el mismo flujo con signos opuestos a sus dos celdas.</p>
+<p>El esquema segregado predice la velocidad con reconstrucción lineal limitada en las caras para la convección y difusión explícita. Una proyección de presión corrige los flujos para satisfacer la continuidad. La frontera inmersa usa penalización volumétrica de Brinkman según la fracción sólida de cada celda. La reacción al término de penalización da una estimación de la fuerza total. La entrada acelera desde reposo, la salida fija la presión y los límites superior e inferior imponen deslizamiento sin penetración.</p>
+<p>La convección es de segundo orden espacial en regiones suaves y el limitador reduce el orden cerca de extremos. El avance temporal es de primer orden. Una perturbación breve y pequeña durante el arranque permite que crezcan las inestabilidades de la estela. El criterio de parada estacionaria es orientativo. En los casos con desprendimiento periódico, sigue la evolución temporal y compara promedios al refinar.</p>
+</div>
+</details>
+</section>
+</div>
+<aside class="panel suggestions">
+<h2>Explora y aprende</h2>
+<ol>
+<li><strong>Busca una calle de vórtices con Volúmenes Finitos.</strong> Elige el cilindro, Re = 250, malla media o fina y el modo temporal. Selecciona vorticidad y deja avanzar el flujo hasta unos 20–30 <i>t</i><sub>res</sub>. Busca remolinos alternos y oscilaciones de sustentación. Compara con Re = 40.</li>
+<li><strong>Compara dos coches.</strong> Mantén Re, escala y ángulo fijos. Compara la anchura de la estela y el arrastre medio de ambos.</li>
+<li><strong>Compara los tres perfiles a 0°.</strong> Busca diferencias entre las presiones de las dos caras y comprueba el signo de la sustentación. Repite a 5°.</li>
+<li><strong>Refina la malla.</strong> Mantén fijo el objeto, su escala y Re. Compara los promedios en dos resoluciones al mismo tiempo de residencia.</li>
+<li><strong>Cambia el tamaño.</strong> A Re fijo, compara las fuerzas por unidad de envergadura y sus coeficientes. Observa cuánto espacio queda entre el objeto y los límites transversales.</li>
+</ol>
+</aside>
+</div></main>
+<footer>Norberto Fueyo y ChatGPT · Material docente · Mecánica de Fluidos</footer>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const LATTICE_SPEED=.045;
+const latticeWidths=[320,480,640,960,1280];
+const defaultsByMethod={lbm:1,fv:2};
+const resolutions={...defaultsByMethod};
+let NX, NY, activeMethod, worker, displayScale;
+const defaults = {re:160, angle:0, size:100, runMode:'transient', speed:10, rho:1.225, field:'pressure'};
+const format = (v, digits=2) => v.toLocaleString('es-ES',{minimumFractionDigits:digits, maximumFractionDigits:digits});
+let LENGTH, stepsPerResidence, averageStartStep, batchSize, bodyScale;
+let mesh, owner, steadySteps;
+let unstable = false;
+
+function airfoil(camber, position, thickness) {
+  const upper = [], lower = [];
+  for (let i=0; i<=80; i++) {
+    const x = (1-Math.cos(Math.PI*i/80))/2;
+    const t = 5*thickness*(.2969*Math.sqrt(x)-.126*x-.3516*x*x+.2843*x**3-.1036*x**4);
+    const fore = x<position;
+    const scale = camber/(fore ? position**2 : (1-position)**2);
+    const mean = fore ? scale*(2*position*x-x*x) : scale*(1-2*position+2*position*x-x*x);
+    const angle = Math.atan(2*scale*(position-x));
+    upper.push([100*(x-t*Math.sin(angle)),50-100*(mean+t*Math.cos(angle))]);
+    lower.push([100*(x+t*Math.sin(angle)),50-100*(mean-t*Math.cos(angle))]);
+  }
+  return 'M'+upper.concat(lower.reverse()).map(point=>point.map(v=>v.toFixed(3)).join(',')).join(' L')+' Z';
+}
+const shapes = {
+  n0012:['NACA 0012','Perfil simétrico con un espesor máximo del 12 % de la cuerda.',airfoil(0,.4,.12)],
+  n2412:['NACA 2412','Curvatura máxima del 2 % al 40 % de la cuerda, con un espesor del 12 %.',airfoil(.02,.4,.12)],
+  n4412:['NACA 4412','Curvatura máxima del 4 % al 40 % de la cuerda, con un espesor del 12 %.',airfoil(.04,.4,.12)],
+  old: ['Coche antiguo','Cabina cuadrada, zaga plana y ruedas expuestas.','M0 58 L5 46 L25 44 L37 27 L72 27 L88 45 L98 47 L100 65 L0 65 Z M29 65 A9 9 0 1 0 11 65 A9 9 0 1 0 29 65 Z M88 65 A9 9 0 1 0 70 65 A9 9 0 1 0 88 65 Z'],
+  modern: ['Coche moderno','Morro bajo, techo redondeado y zaga afinada.','M0 58 Q6 51 27 48 Q41 35 57 35 Q74 34 89 48 Q98 51 100 58 L98 65 L3 65 Z M29 65 A8 8 0 1 0 13 65 A8 8 0 1 0 29 65 Z M88 65 A8 8 0 1 0 72 65 A8 8 0 1 0 88 65 Z'],
+  truck: ['Camión','Cabina separada y remolque alto con parte trasera plana.','M0 65 L0 48 L8 45 L14 28 L28 28 L32 40 L32 65 Z M36 19 H100 V64 H36 Z M27 66 A8 8 0 1 0 11 66 A8 8 0 1 0 27 66 Z M55 66 A8 8 0 1 0 39 66 A8 8 0 1 0 55 66 Z M96 66 A8 8 0 1 0 80 66 A8 8 0 1 0 96 66 Z'],
+  cyclist: ['Ciclista','Ciclista agachado, cuadro y ruedas abiertas.','M27 20 Q30 12 39 16 L44 23 L67 26 Q75 30 72 40 L62 42 L53 53 L59 65 L53 68 L44 52 L51 39 L43 35 L32 46 L23 45 L32 31 Z M19 44 L27 40 L31 43 L22 69 L17 68 Z M22 62 L58 45 L83 66 L57 71 Z M24 66 L56 66 L76 65 L59 51 Z M32 68 A16 16 0 1 0 0 68 A16 16 0 1 0 32 68 Z M27 68 A11 11 0 1 1 5 68 A11 11 0 1 1 27 68 Z M100 68 A16 16 0 1 0 68 68 A16 16 0 1 0 100 68 Z M95 68 A11 11 0 1 1 73 68 A11 11 0 1 1 95 68 Z'],
+  sardine: ['Sardina','Cuerpo esbelto con cola bifurcada.','M0 49 Q12 38 37 39 L49 30 L56 41 Q75 44 84 48 L100 36 L94 50 L100 64 L84 53 Q64 57 44 61 L37 65 L28 59 Q9 57 0 51 Z'],
+  whale: ['Ballena','Cabeza redondeada, cuerpo ancho y pedúnculo caudal estrecho.','M0 47 Q0 29 26 28 Q49 28 65 43 Q75 53 87 50 Q95 40 100 42 Q99 52 92 55 Q98 57 100 65 Q94 67 86 57 Q73 58 61 60 Q55 69 43 73 L45 62 Q24 65 10 59 Q0 55 0 47 Z'],
+  cylinder: ['Cilindro','Forma simétrica de referencia para estudiar la estela.','M19 50 A31 31 0 1 0 81 50 A31 31 0 1 0 19 50 Z'],
+};
+const shapeOrder = ['cylinder','n0012','n2412','n4412','sardine','whale','modern','old','truck','cyclist'];
+const paths = Object.fromEntries(Object.entries(shapes).map(([id, data]) => [id, new Path2D(data[2])]));
+let selected = 'old', mask, current, running = true, generation = 0, pending = false, points = [], averages = [], fieldPixels;
+const scene = $('scene').getContext('2d');
+const chart = $('history').getContext('2d');
+const raster = document.createElement('canvas');
+
+const pixels = raster.getContext('2d', {willReadFrequently:true});
+const paletteButtons = new Map();
+
+function paintShape(ctx, id, cx, cy, length, angle = 0) {
+  const scale = length / (id === 'cylinder' ? 62 : 100);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle * Math.PI / 180);
+  ctx.scale(scale, scale);
+  ctx.translate(-50, -50);
+  ctx.fill(paths[id]);
+  ctx.restore();
+}
+for (const id of shapeOrder) {
+  const [name] = shapes[id];
+  const button = document.createElement('button');
+  button.type = 'button';
+  const icon = document.createElement('canvas');
+  icon.width = 132; icon.height = 54;
+  icon.setAttribute('aria-hidden', 'true');
+  const ctx = icon.getContext('2d');
+  ctx.fillStyle = '#174a60';
+  paintShape(ctx, id, 66, 25, id === 'cylinder' ? 38 : 73);
+  button.append(icon, name);
+  button.onclick = () => { selected = id; restart(); };
+  $('palette').append(button);
+  paletteButtons.set(id, button);
+}
+
+function finiteVolumeSolver() {
+  let config, cells, owner, faces, leaves, step, steadyChange;
+  let u, v, starX, starY, du, dv, volume, damping, penalty, wx, wy;
+  let pressure, rhs, diag, residual, preconditioned, search, product;
+  let mesh, solid, lastDivergence, lastIterations;
+  let offsets, neighbors, coefficients, gradientX, gradientY;
+  let gradUX,gradUY,gradVX,gradVY,limitU,limitV,minU,maxU,minV,maxV;
+  const array = n => new Float64Array(n);
+
+  function buildGrid() {
+    const {nx, ny, h, mask, cx, cy, length} = config;
+    const stride = nx+1;
+    const integral = new Uint32Array(stride*(ny+1));
+    for (let y=0; y<ny; y++) {
+      let row = 0;
+      for (let x=0; x<nx; x++) {
+        row += mask[y*nx+x];
+        integral[(y+1)*stride+x+1] = integral[y*stride+x+1]+row;
+      }
+    }
+    function area(x,y,s,padding=0) {
+      const left=Math.max(0,x-padding), right=Math.min(nx,x+s+padding);
+      const top=Math.max(0,y-padding), bottom=Math.min(ny,y+s+padding);
+      return integral[bottom*stride+right]-integral[top*stride+right]
+        -integral[bottom*stride+left]+integral[top*stride+left];
+    }
+    function refine(x,y,s,force=false) {
+      const midY=y+s/2;
+      const wake = x+s>cx && x<cx+4.8*length && Math.abs(midY-cy)<.65*length+s/2;
+      const near = s>h && area(x,y,s,2*s+2)>0;
+      if (s>h && (force || near || (wake && s>2*h))) {
+        const half=s/2;
+        refine(x,y,half); refine(x+half,y,half);
+        refine(x,y+half,half); refine(x+half,y+half,half);
+      } else leaves.push({x,y,s,chi:area(x,y,s)/(s*s)});
+    }
+    function label() {
+      for (let id=0; id<leaves.length; id++) {
+        const {x,y,s}=leaves[id];
+        for (let row=y; row<y+s; row++) owner.fill(id,row*nx+x,row*nx+x+s);
+      }
+    }
+    leaves=[];
+    owner=new Int32Array(nx*ny);
+    const root=64;
+    for (let y=0; y<ny; y+=root) for (let x=0; x<nx; x+=root) refine(x,y,root);
+    // Split coarse neighbors until every internal face has a size ratio of at most 2:1.
+    for (;;) {
+      label();
+      const split=new Set();
+      function balance(a,b) {
+        if (leaves[a].s>2*leaves[b].s) split.add(a);
+        if (leaves[b].s>2*leaves[a].s) split.add(b);
+      }
+      for (let y=0; y<ny; y++) for (let x=0; x<nx; x++) {
+        const i=y*nx+x, a=owner[i];
+        if (x+1<nx && a!==owner[i+1]) balance(a,owner[i+1]);
+        if (y+1<ny && a!==owner[i+nx]) balance(a,owner[i+nx]);
+      }
+      if (!split.size) break;
+      const previous=leaves;
+      leaves=[];
+      previous.forEach(({x,y,s,chi},i)=>split.has(i) ? refine(x,y,s,true) : leaves.push({x,y,s,chi}));
+    }
+    cells=leaves.length;
+    mesh=Int16Array.from(leaves.flatMap(({x,y,s})=>[x,y,s]));
+    solid=Float32Array.from(leaves.map(c=>c.chi));
+    faces=[];
+    function face(a,b,axis,length,boundary,midpoint) {
+      const ca=leaves[a], cb=leaves[b];
+      const sa=ca.s, sb=b<0 ? 0 : cb.s;
+      const x=axis===0 ? ca.x+(boundary===-1 ? 0 : sa) : midpoint;
+      const y=axis===1 ? ca.y+(boundary===-2 && ca.y===0 ? 0 : sa) : midpoint;
+      faces.push({a,b,axis,length,distance:(sa+sb)/2,blend:b<0 ? 0 : sa/(sa+sb),
+        boundary, flux:0, predicted:0, mobility:0, weight:0,
+        ax:x-ca.x-sa/2, ay:y-ca.y-sa/2, bx:cb ? x-cb.x-sb/2 : 0, by:cb ? y-cb.y-sb/2 : 0,
+        inletBias:boundary===-1 ? .025*Math.sin(2*Math.PI*y/ny) : 0});
+    }
+    // Each fine/coarse interface is partitioned into shared face segments.
+    for (let a=0; a<cells; a++) {
+      const {x,y,s}=leaves[a];
+      if (x===0) face(a,-1,0,s,-1,y+s/2);
+      if (x+s===nx) face(a,-1,0,s,1,y+s/2);
+      else for (let k=0; k<s;) {
+        const b=owner[(y+k)*nx+x+s];
+        const span=Math.min(y+s,leaves[b].y+leaves[b].s)-(y+k);
+        face(a,b,0,span,0,y+k+span/2); k+=span;
+      }
+      if (y+s<ny) for (let k=0; k<s;) {
+        const b=owner[(y+s)*nx+x+k];
+        const span=Math.min(x+s,leaves[b].x+leaves[b].s)-(x+k);
+        face(a,b,1,span,0,x+k+span/2); k+=span;
+      }
+      if (y===0) face(a,-1,1,s,-2,x+s/2);
+      if (y+s===ny) face(a,-1,1,s,-2,x+s/2);
+    }
+  }
+
+  function initialize(data) {
+    config=data;
+    buildGrid();
+    step=0;
+    steadyChange=0;
+    lastDivergence=0;
+    lastIterations=0;
+    [u,v,starX,starY,du,dv,volume,damping,penalty,wx,wy,pressure,rhs,diag,residual,
+      preconditioned,search,product]=Array.from({length:18},()=>array(cells));
+    for (let i=0; i<cells; i++) {
+      volume[i]=leaves[i].s**2;
+      penalty[i]=solid[i]/(.35*config.h);
+      damping[i]=1/(1+config.dt*penalty[i]);
+    }
+    for (const f of faces) {
+      const {a,b,axis,length,distance,blend,boundary}=f;
+      const w=axis===0 ? wx : wy;
+      w[a]+=length;
+      if (b>=0) w[b]+=length;
+      if (b<0 && boundary!==1) continue;
+      f.mobility=b>=0 ? 1/((1-blend)/damping[a]+blend/damping[b]) : damping[a];
+      f.weight=f.mobility*length/distance;
+      diag[a]+=f.weight;
+      if (b>=0) diag[b]+=f.weight;
+    }
+    const counts=new Int32Array(cells);
+    for (const {a,b} of faces) if (b>=0) { counts[a]++; counts[b]++; }
+    offsets=new Int32Array(cells+1);
+    for (let i=0; i<cells; i++) offsets[i+1]=offsets[i]+counts[i];
+    neighbors=new Int32Array(offsets[cells]);
+    coefficients=array(offsets[cells]);
+    const next=offsets.slice();
+    for (const {a,b,weight} of faces) if (b>=0) {
+      const ai=next[a]++, bi=next[b]++;
+      neighbors[ai]=b; coefficients[ai]=weight;
+      neighbors[bi]=a; coefficients[bi]=weight;
+    }
+    gradientX=array(neighbors.length);
+    gradientY=array(neighbors.length);
+    [gradUX,gradUY,gradVX,gradVY,limitU,limitV,minU,maxU,minV,maxV]=Array.from({length:10},()=>array(cells));
+    for (let i=0; i<cells; i++) {
+      const c=leaves[i];
+      let xx=0, xy=0, yy=0;
+      for (let k=offsets[i]; k<offsets[i+1]; k++) {
+        const n=leaves[neighbors[k]];
+        const dx=n.x-c.x+(n.s-c.s)/2, dy=n.y-c.y+(n.s-c.s)/2;
+        const w=1/(dx*dx+dy*dy);
+        xx+=w*dx*dx; xy+=w*dx*dy; yy+=w*dy*dy;
+        gradientX[k]=w*dx; gradientY[k]=w*dy;
+      }
+      const det=xx*yy-xy*xy;
+      if (det<=1e-12) {
+        gradientX.fill(0,offsets[i],offsets[i+1]);
+        gradientY.fill(0,offsets[i],offsets[i+1]);
+        continue;
+      }
+      for (let k=offsets[i]; k<offsets[i+1]; k++) {
+        const gx=gradientX[k], gy=gradientY[k];
+        gradientX[k]=(yy*gx-xy*gy)/det;
+        gradientY[k]=(xx*gy-xy*gx)/det;
+      }
+    }
+  }
+
+  function multiply(x,out) {
+    for (let i=0; i<cells; i++) {
+      let value=diag[i]*x[i];
+      for (let k=offsets[i]; k<offsets[i+1]; k++) value-=coefficients[k]*x[neighbors[k]];
+      out[i]=value;
+    }
+  }
+  function precondition() {
+    // Forward and backward sweeps give a symmetric Gauss–Seidel preconditioner.
+    for (let i=0; i<cells; i++) {
+      let sum=residual[i];
+      for (let k=offsets[i]; k<offsets[i+1]; k++) {
+        if (neighbors[k]<i) sum+=coefficients[k]*preconditioned[neighbors[k]];
+      }
+      preconditioned[i]=sum/diag[i];
+    }
+    let rz=0;
+    for (let i=cells-1; i>=0; i--) {
+      let sum=0;
+      for (let k=offsets[i]; k<offsets[i+1]; k++) {
+        if (neighbors[k]>i) sum+=coefficients[k]*preconditioned[neighbors[k]];
+      }
+      preconditioned[i]+=sum/diag[i];
+      rz+=residual[i]*preconditioned[i];
+    }
+    return rz;
+  }
+
+  function projectPressure() {
+    multiply(pressure,product);
+    let rhsNorm=0;
+    for (let i=0; i<cells; i++) {
+      const r=rhs[i]-product[i];
+      residual[i]=r;
+      rhsNorm+=rhs[i]**2/diag[i];
+    }
+    let rz=precondition();
+    search.set(preconditioned);
+    const tolerance=Math.max(1e-17,rhsNorm*1e-10);
+    let iterations=0;
+    while (iterations<320 && rz>tolerance) {
+      multiply(search,product);
+      let denom=0;
+      for (let i=0; i<cells; i++) denom+=search[i]*product[i];
+      if (!(denom>0)) break;
+      const alpha=rz/denom;
+      for (let i=0; i<cells; i++) {
+        pressure[i]+=alpha*search[i];
+        residual[i]-=alpha*product[i];
+      }
+      const next=precondition();
+      const beta=next/rz;
+      for (let i=0; i<cells; i++) search[i]=preconditioned[i]+beta*search[i];
+      rz=next;
+      iterations++;
+    }
+    lastIterations=iterations;
+  }
+
+  function limit(delta,center,low,high) {
+    if (delta>1e-12) return (high-center)/delta;
+    if (delta< -1e-12) return (low-center)/delta;
+    return 1;
+  }
+
+  function reconstruct() {
+    limitU.fill(1);
+    limitV.fill(1);
+    for (let i=0; i<cells; i++) {
+      let ux=0, uy=0, vx=0, vy=0;
+      let lowU=u[i], highU=u[i], lowV=v[i], highV=v[i];
+      for (let k=offsets[i]; k<offsets[i+1]; k++) {
+        const j=neighbors[k], ud=u[j]-u[i], vd=v[j]-v[i];
+        ux+=gradientX[k]*ud; uy+=gradientY[k]*ud;
+        vx+=gradientX[k]*vd; vy+=gradientY[k]*vd;
+        lowU=Math.min(lowU,u[j]); highU=Math.max(highU,u[j]);
+        lowV=Math.min(lowV,v[j]); highV=Math.max(highV,v[j]);
+      }
+      gradUX[i]=ux; gradUY[i]=uy; gradVX[i]=vx; gradVY[i]=vy;
+      minU[i]=lowU; maxU[i]=highU; minV[i]=lowV; maxV[i]=highV;
+    }
+    for (const {a,b,ax,ay,bx,by} of faces) {
+      limitU[a]=Math.min(limitU[a],limit(gradUX[a]*ax+gradUY[a]*ay,u[a],minU[a],maxU[a]));
+      limitV[a]=Math.min(limitV[a],limit(gradVX[a]*ax+gradVY[a]*ay,v[a],minV[a],maxV[a]));
+      if (b<0) continue;
+      limitU[b]=Math.min(limitU[b],limit(gradUX[b]*bx+gradUY[b]*by,u[b],minU[b],maxU[b]));
+      limitV[b]=Math.min(limitV[b],limit(gradVX[b]*bx+gradVY[b]*by,v[b],minV[b],maxV[b]));
+    }
+  }
+
+  function advanceOne() {
+    const {dt,length,re}=config;
+    const viscosity=length/re;
+    const t=(++step)*dt/length;
+    const ramp=Math.min(1,t/.7);
+    const inlet=ramp*ramp*(3-2*ramp);
+    const disturbance=Math.sin(Math.PI*Math.min(1,t/2))**2;
+    reconstruct();
+    du.fill(0); dv.fill(0);
+    for (const f of faces) {
+      const {a,b,flux,distance,length:area,boundary}=f;
+      if (boundary===-2) continue;
+      const inletSpeed=inlet*(1+f.inletBias*disturbance);
+      const ua=b>=0 ? u[b] : boundary===-1 ? inletSpeed : u[a];
+      const va=b>=0 ? v[b] : boundary===-1 ? 0 : v[a];
+      const diffusion=viscosity*area/distance;
+      const advective=boundary===-1 ? -inletSpeed*area : flux;
+      const upstream=advective<0 && b>=0 ? b : a;
+      const dx=upstream===a ? f.ax : f.bx, dy=upstream===a ? f.ay : f.by;
+      const uf=boundary===-1 ? ua : u[upstream]+limitU[upstream]*(gradUX[upstream]*dx+gradUY[upstream]*dy);
+      const vf=boundary===-1 ? va : v[upstream]+limitV[upstream]*(gradVX[upstream]*dx+gradVY[upstream]*dy);
+      const fx=advective*uf-diffusion*(ua-u[a]);
+      const fy=advective*vf-diffusion*(va-v[a]);
+      du[a]-=fx; dv[a]-=fy;
+      if (b>=0) { du[b]+=fx; dv[b]+=fy; }
+    }
+    for (let i=0; i<cells; i++) {
+      starX[i]=u[i]+dt*du[i]/volume[i];
+      starY[i]=v[i]+dt*dv[i]/volume[i];
+    }
+    rhs.fill(0);
+    for (const f of faces) {
+      const {a,b,axis,length:area,blend,mobility,boundary}=f;
+      const component=axis===0 ? starX : starY;
+      f.predicted=boundary===-1 ? -inlet*(1+f.inletBias*disturbance)*area : boundary===-2 ? 0 :
+        area*mobility*(b>=0 ? (1-blend)*component[a]+blend*component[b] : component[a]);
+      rhs[a]-=f.predicted/dt;
+      if (b>=0) rhs[b]+=f.predicted/dt;
+    }
+    projectPressure();
+    du.fill(0); dv.fill(0);
+    rhs.fill(0);
+    for (const f of faces) {
+      const {a,b,axis}=f;
+      const pressureJump=pressure[a]-(b>=0 ? pressure[b] : 0);
+      f.flux=f.predicted+dt*f.weight*pressureJump;
+      rhs[a]+=f.flux;
+      if (b>=0) rhs[b]-=f.flux;
+      if (!f.weight) continue;
+      const gradient=axis===0 ? du : dv;
+      const contribution=f.length*pressureJump/f.distance;
+      gradient[a]+=contribution;
+      if (b>=0) gradient[b]+=contribution;
+    }
+    let forceX=0, forceY=0, delta=0, divergence=0;
+    for (let i=0; i<cells; i++) {
+      const newU=damping[i]*(starX[i]+dt*du[i]/wx[i]);
+      const newV=damping[i]*(starY[i]+dt*dv[i]/wy[i]);
+      delta+=volume[i]*((newU-u[i])**2+(newV-v[i])**2);
+      u[i]=newU; v[i]=newV;
+      forceX+=volume[i]*penalty[i]*newU;
+      forceY-=volume[i]*penalty[i]*newV;
+      divergence=Math.max(divergence,Math.abs(rhs[i])/volume[i]*length);
+    }
+    lastDivergence=divergence;
+    steadyChange=Math.sqrt(delta/(config.nx*config.ny))*length/dt;
+    return [2*forceX/length,2*forceY/length];
+  }
+
+  function send(count,reset=false) {
+    let cd=0, cl=0;
+    for (let i=0; i<count; i++) {
+      const [drag,lift]=advanceOne();
+      cd+=drag; cl+=lift;
+    }
+    const ux=Float32Array.from(u), uy=Float32Array.from(v);
+    const p=Float32Array.from(pressure);
+    let maxSpeed=0;
+    for (let i=0; i<cells; i++) maxSpeed=Math.max(maxSpeed,Math.hypot(u[i],v[i]));
+    const message={generation:config.generation, iteration:step, count, cd:count ? cd/count : 0,
+      cl:count ? cl/count : 0, ux,uy,p,cells,maxSpeed,steadyChange,
+      divergence:lastDivergence,pressureIterations:lastIterations};
+    const transfer=[ux.buffer,uy.buffer,p.buffer];
+    if (reset) {
+      Object.assign(message,{mesh, owner, solid});
+      transfer.push(mesh.buffer,owner.buffer,solid.buffer);
+    }
+    postMessage(message,transfer);
+  }
+  onmessage=({data})=>{
+    if (data.kind==='reset') {
+      initialize(data);
+      send(0,true);
+    } else if (data.generation===config?.generation) send(data.count);
+  };
+}
+function latticeSolver() {
+  const ex = [0,1,0,-1,0,1,-1,-1,1];
+  const ey = [0,0,1,0,-1,1,1,-1,-1];
+  const opposite = [0,3,4,1,2,7,8,5,6];
+  const weights = [4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36];
+  let nx, ny, speed, length, solid, a, b, links, iter, rate, oddRate, generation;
+
+  function initialize(config) {
+    ({nx, ny, speed, length, solid, generation} = config);
+    iter = 0;
+    const tau = .5 + 3 * speed * length / config.re;
+    rate = 1/tau;
+    oddRate = 1/(.5 + (3/16)/(tau-.5));
+    a = new Float32Array(nx*ny*9);
+    b = new Float32Array(a.length);
+    links = new Int32Array(a.length);
+    for (let y=0; y<ny; y++) for (let x=0; x<nx; x++) {
+      const i = y*nx+x;
+      if (solid[i]) continue;
+      for (let d=0; d<9; d++) {
+        const xNext = x+ex[d];
+        const neighbor = ((y+ey[d]+ny)%ny)*nx+xNext;
+        const j = 9*i+d;
+        a[j] = weights[d];
+        links[j] = xNext<0 || xNext>=nx ? -2 : solid[neighbor] ? -1 : 9*neighbor+d;
+      }
+    }
+  }
+
+  function advance(count) {
+    let fx=0, fy=0;
+    for (let step=0; step<count; step++) {
+      iter++;
+      const start = Math.min(1,iter*speed/(.2*nx));
+      const inlet = speed*start*start*(3-2*start);
+      const transverse = inlet*.007*Math.sin(Math.PI*start);
+      for (let i=0; i<solid.length; i++) {
+        if (solid[i]) continue;
+        const j = 9*i;
+        const r = a[j]+a[j+1]+a[j+2]+a[j+3]+a[j+4]+a[j+5]+a[j+6]+a[j+7]+a[j+8];
+        const vx = (a[j+1]-a[j+3]+a[j+5]-a[j+6]-a[j+7]+a[j+8])/r;
+        const vy = (a[j+2]-a[j+4]+a[j+5]+a[j+6]-a[j+7]-a[j+8])/r;
+        const speedTerm = 1-1.5*(vx*vx+vy*vy);
+        for (let d=0; d<9; d++) {
+          const target = links[j+d];
+          if (target === -2) continue;
+          const dot = ex[d]*vx+ey[d]*vy;
+          const f = a[j+d], reverse = a[j+opposite[d]];
+          const value = f - rate*(.5*(f+reverse)-weights[d]*r*(speedTerm+4.5*dot*dot))
+                          - oddRate*(.5*(f-reverse)-weights[d]*r*3*dot);
+          if (target >= 0) b[target] = value;
+          else {
+            b[j+opposite[d]] = value;
+            fx += 2*value*ex[d];
+            fy += 2*value*ey[d];
+          }
+        }
+      }
+      for (let y=0; y<ny; y++) {
+        const row = 9*y*nx;
+        // Zou–He velocity inlet. A small transverse startup pulse seeds wake asymmetry.
+        const r = (b[row]+b[row+2]+b[row+4]+2*(b[row+3]+b[row+6]+b[row+7]))/(1-inlet);
+        const wall = .5*(b[row+4]-b[row+2]);
+        b[row+1] = b[row+3]+2*r*inlet/3;
+        b[row+5] = b[row+7]+wall+r*(inlet/6+transverse/2);
+        b[row+8] = b[row+6]-wall+r*(inlet/6-transverse/2);
+        const outlet = row+9*(nx-1);
+        const outletMomentum = b[outlet]+b[outlet+2]+b[outlet+4]
+          + 2*(b[outlet+1]+b[outlet+5]+b[outlet+8])-1;
+        const outletSide = .5*(b[outlet+4]-b[outlet+2]);
+        b[outlet+3] = b[outlet+1]-2*outletMomentum/3;
+        b[outlet+6] = b[outlet+8]+outletSide-outletMomentum/6;
+        b[outlet+7] = b[outlet+5]-outletSide-outletMomentum/6;
+      }
+      [a,b] = [b,a];
+    }
+    const ux = new Float32Array(solid.length);
+    const uy = new Float32Array(solid.length);
+    const p = new Float32Array(solid.length);
+    let densityError = 0;
+    for (let i=0; i<solid.length; i++) {
+      if (solid[i]) continue;
+      let r=0, x=0, y=0;
+      for (let d=0; d<9; d++) {
+        const f = a[9*i+d];
+        r += f; x += f*ex[d]; y += f*ey[d];
+      }
+      p[i] = (r-1)/(3*speed*speed);
+      ux[i] = x/(r*speed);
+      uy[i] = y/(r*speed);
+      densityError = Math.max(densityError, Math.abs(r-1));
+    }
+    const reference=p[Math.floor(ny/2)*nx+3];
+    for (let i=0; i<p.length; i++) p[i]-=reference;
+    const scale = count*.5*speed*speed*length;
+    postMessage({generation, ux, uy, p, densityError, cells:solid.length,
+      iteration:iter, count, cd:count ? fx/scale : 0, cl:count ? -fy/scale : 0}, [ux.buffer,uy.buffer,p.buffer]);
+  }
+
+  onmessage = ({data}) => {
+    if (data.kind === 'reset') {
+      initialize(data);
+      advance(0);
+    } else if (data.generation === generation) advance(data.count);
+  };
+}
+const solverURLs = Object.fromEntries(Object.entries({lbm:latticeSolver,fv:finiteVolumeSolver})
+  .map(([id,solve])=>[id,URL.createObjectURL(new Blob(['('+solve.toString()+')()'],{type:'text/javascript'}))]));
+
+function switchMethod() {
+  if (worker) worker.terminate();
+  activeMethod=$('method').value;
+  worker=new Worker(solverURLs[activeMethod]);
+  worker.onmessage=receiveFrame;
+  worker.onerror=()=>{
+    running=false;
+    pending=false;
+    unstable=true;
+    updateControls();
+    $('status').classList.add('unstable');
+    $('status').textContent='El cálculo se ha detenido. Reinicia el flujo o prueba otra resolución.';
+  };
+  const fv=activeMethod==='fv';
+  $('resolution').value=resolutions[activeMethod];
+  $('steadyOptions').hidden=!fv;
+  $('lbmModel').hidden=fv;
+  $('fvModel').hidden=!fv;
+  $('methodSummary').textContent=fv
+    ? 'Malla refinada cerca del objeto y en la estela. Permite buscar un estado estacionario.'
+    : 'Malla uniforme. Cada paso actualiza el flujo mediante intercambios entre celdas vecinas.';
+  restart();
+}
+
+function updateControls() {
+  $('toggle').textContent = running ? 'Pausar' : 'Reanudar';
+  $('toggle').disabled = unstable;
+  $('step').disabled = running || pending || unstable;
+}
+function request(count) {
+  pending = true;
+  updateControls();
+  const elapsed = current?.iteration ?? 0;
+  const gate = averageStartStep;
+  worker.postMessage({generation,count:elapsed<gate ? Math.min(count,gate-elapsed) : count});
+}
+function restart() {
+  generation++;
+  current = null;
+  points = [];
+  averages = [];
+  const resume = unstable;
+  unstable = false;
+  if (resume) running = true;
+  $('status').classList.remove('unstable');
+  const angle = +$('angle').value;
+  const fv=activeMethod==='fv';
+  const refinement=+$('resolution').value;
+  resolutions[activeMethod]=refinement;
+  bodyScale=+$('size').value/100;
+  NX=fv ? 1280 : latticeWidths[refinement-1];
+  NY=NX*.4;
+  displayScale=960/NX;
+  LENGTH=.15*NX*bodyScale;
+  const h=2**(5-refinement);
+  const reControl=$('re');
+  const reStep=+reControl.step;
+  const reMax=fv ? 1000 : reStep*Math.floor(11.25*LENGTH/reStep+1e-9);
+  const re=Math.min(+reControl.value,reMax);
+  reControl.max=reMax;
+  reControl.value=re;
+  const dt=fv ? .24*h/(1+4*LENGTH/(re*h)) : LATTICE_SPEED;
+  stepsPerResidence=LENGTH/dt;
+  averageStartStep=Math.ceil(5*stepsPerResidence-1e-9);
+  batchSize=fv ? [0,8,8,4,2,1][refinement] : Math.max(16,Math.round(64/Math.sqrt(NX/320)));
+  $('reLimit').textContent='Re máximo para esta malla'+(fv ? ': ' : ' y escala: ')+format(reMax,0)+'.';
+  steadySteps=0;
+  mesh=owner=null;
+  raster.width = NX;
+  raster.height = NY;
+  fieldPixels = pixels.createImageData(NX,NY);
+  updateLabels();
+  $('meshInfo').textContent = fv ? 'Construyendo el quadtree…' : NX+' × '+NY+' celdas uniformes · L/Δ ≈ '+format(LENGTH,0)+'.';
+  $('shapeNote').textContent = shapes[selected][1];
+  for (const [id, button] of paletteButtons) button.setAttribute('aria-pressed', id===selected);
+  pixels.clearRect(0,0,NX,NY);
+  pixels.fillStyle = '#fff';
+  const cx=NX*292/1280;
+  paintShape(pixels,selected,cx,NY/2,LENGTH,angle);
+  const rgba = pixels.getImageData(0,0,NX,NY).data;
+  mask = Uint8Array.from({length:NX*NY}, (_,i)=>rgba[4*i+3]>=128 ? 1:0);
+  updateForces();
+  $('status').textContent = 'Reiniciando desde reposo…';
+  pending = true;
+  updateControls();
+  drawFlow();
+  drawHistory();
+  const options={kind:'reset',generation,nx:NX,ny:NY,length:LENGTH,re};
+  worker.postMessage(fv ? {...options,h,dt,mask,cx,cy:NY/2} : {...options,speed:LATTICE_SPEED,solid:mask});
+}
+function receiveFrame({data}) {
+  if (data.generation !== generation) return;
+  pending = false;
+  const fv=activeMethod==='fv';
+  const invalid=fv
+    ? !Number.isFinite(data.maxSpeed) || !Number.isFinite(data.divergence) || data.maxSpeed>8 || data.divergence>.1
+    : !Number.isFinite(data.densityError) || data.densityError>.15;
+  if (invalid) {
+    running=false;
+    unstable = true;
+    updateControls();
+    $('status').classList.add('unstable');
+    $('status').textContent=fv
+      ? 'El cálculo ha perdido estabilidad o la corrección de masa es insuficiente. Prueba con otra finura o un Re menor.'
+      : 'Método numérico inestable para este Re en esta malla. Refina la malla o disminuye Re.';
+    return;
+  }
+  current = data;
+  if (data.mesh) {
+    ({mesh,owner}=data);
+    const cellsAcross = LENGTH/2**(5-$('resolution').value);
+    $('meshInfo').textContent = format(data.cells,0)+' celdas · L/Δmín ≈ '+format(cellsAcross,0)+'.';
+  }
+  if (data.count) {
+    const t = data.iteration/stepsPerResidence;
+    points.push({t, cd:data.cd, cl:data.cl});
+    if (points.length > 4000) points.shift();
+    if (data.iteration > averageStartStep) {
+      averages.push({start:data.iteration-data.count, end:data.iteration, cd:data.cd, cl:data.cl});
+      const cutoff = data.iteration-stepsPerResidence;
+      while (averages.length && averages[0].end<=cutoff) averages.shift();
+    }
+  }
+  updateForces();
+  if (data.iteration > averageStartStep && data.steadyChange<.002 && data.divergence<.002) steadySteps+=data.count;
+  else steadySteps=0;
+  const steady = fv && $('runMode').value==='steady' && steadySteps>=stepsPerResidence;
+  if (steady) running=false;
+  $('status').textContent = (steady ? 'Estado estacionario aproximado · ' : '')+
+    't/t_res = '+format(data.iteration/stepsPerResidence)+(fv
+      ? ' · máx. |∇·u| L/U∞ = '+data.divergence.toExponential(1)
+      : ' · máx. |Δρ|/ρ₀ = '+format(100*data.densityError,1)+' %');
+  drawFlow();
+  drawHistory();
+  updateControls();
+  if (running) requestAnimationFrame(()=>{ if (running && !pending) request(batchSize); });
+}
+$('toggle').onclick = () => {
+  running = !running;
+  updateControls();
+  if (running && !pending) request(batchSize);
+};
+$('step').onclick = () => { if (!pending && !running) request(batchSize); };
+$('reset').onclick = restart;
+function updateLabels() {
+  $('reValue').textContent = format(+$('re').value,0);
+  $('angleValue').textContent = $('angle').value+'°';
+  $('sizeValue').textContent = $('size').value+' %';
+  const level=+$('resolution').value, width=latticeWidths[level-1];
+  $('resolutionValue').textContent=activeMethod==='fv'
+    ? ['','Gruesa','Media','Fina','Muy fina','Extra fina'][level] : width+' × '+width*.4;
+}
+function updateForces() {
+  const speed = $('speed').valueAsNumber, rho = $('rho').valueAsNumber;
+  const conversion = $('speed').validity.valid && $('rho').validity.valid && speed>0 && rho>0
+    ? .5*rho*speed*speed*bodyScale : NaN;
+  const cutoff = (current?.iteration ?? 0)-stepsPerResidence;
+  let sumD=0, sumL=0, duration=0;
+  for (const sample of averages) {
+    const weight = sample.end-Math.max(sample.start,cutoff);
+    sumD += sample.cd*weight;
+    sumL += sample.cl*weight;
+    duration += weight;
+  }
+  const show = (id,v) => { $(id).textContent = Number.isFinite(v) ? format(v) : '—'; };
+  const cutoffT = (points.at(-1)?.t ?? 0)-10;
+  const recent = points.filter(p=>p.t>averageStartStep/stepsPerResidence && p.t>=cutoffT);
+  const liftRange = recent.length>1 ? Math.max(...recent.map(p=>p.cl))-Math.min(...recent.map(p=>p.cl)) : NaN;
+  $('liftVariation').innerHTML = 'Variación pico a pico de C<sub>L</sub> en los últimos 10 <i>t</i><sub>res</sub>: '+
+    (Number.isFinite(liftRange) ? format(liftRange,3) : '—')+'. Se cuentan solo muestras posteriores al arranque.';
+  const cd = current?.count ? current.cd : NaN;
+  const cl = current?.count ? current.cl : NaN;
+  const meanD = sumD/duration, meanL = sumL/duration;
+  for (const [id,v] of Object.entries({drag:cd, lift:cl, dragForce:cd*conversion,
+    liftForce:cl*conversion, meanDrag:meanD, meanLift:meanL,
+    meanDragForce:meanD*conversion, meanLiftForce:meanL*conversion})) show(id,v);
+}
+for (const id of ['re','angle','size']) {
+  $(id).oninput = updateLabels;
+  $(id).onchange = restart;
+}
+$('resolution').oninput = updateLabels;
+$('resolution').onchange = restart;
+for (const id of ['speed','rho']) $(id).oninput = updateForces;
+$('defaults').onclick = () => {
+  for (const [id,value] of Object.entries(defaults)) $(id).value = value;
+  $('streams').checked = true;
+  $('showMesh').checked = false;
+  selected = 'old';
+  running = true;
+  $('resolution').value=defaultsByMethod[activeMethod];
+  restart();
+};
+$('field').onchange = drawFlow;
+$('streams').onchange = drawFlow;
+$('showMesh').onchange = drawFlow;
+$('method').onchange=switchMethod;
+$('methodHelp').onclick=()=>$('methodDialog').showModal();
+
+const scales = {
+  pressure: {low:[55,142,212], mid:[21,38,51], high:[233,115,70], ends:['−1.5','+1.5','Cₚ · 11 bandas de presión']},
+  vorticity: {low:[61,170,214], mid:[21,38,51], high:[251,133,102], ends:['−4','+4','ωL/U∞ · positivo en sentido antihorario']},
+  speed: {low:[13,27,40], mid:[46,109,133], high:[173,237,210], ends:['0','1.6','|u|/U∞']},
+};
+const clamp = (v,min,max) => Math.max(min,Math.min(max,v));
+function fieldValue(mode, i) {
+  const {ux,uy,p}=current;
+  if (mode==='pressure') return Math.round(10*clamp((2*p[i]+1.5)/3,0,1))/10;
+  if (mode==='speed') return Math.hypot(ux[i],uy[i])/1.6;
+  return vorticity[i];
+}
+let vorticity;
+function computeVorticity() {
+  vorticity = new Float32Array(current.cells).fill(.5);
+  if (!mesh) {
+    const {ux,uy}=current;
+    for (let y=0; y<NY; y++) {
+      const yPrev=(y+NY-1)%NY, yNext=(y+1)%NY;
+      for (let x=0; x<NX; x++) {
+        const left=Math.max(0,x-1), right=Math.min(NX-1,x+1);
+        const curl=.5*(ux[yNext*NX+x]-ux[yPrev*NX+x])-(uy[y*NX+right]-uy[y*NX+left])/(right-left);
+        vorticity[y*NX+x]=(curl*LENGTH+4)/8;
+      }
+    }
+    return;
+  }
+  for (let id=0; id<current.cells; id++) {
+    const [x,y,s]=mesh.subarray(3*id,3*id+3);
+    const midX=x+(s>>1), midY=y+(s>>1);
+    const below=owner[Math.min(NY-1,y+s)*NX+midX];
+    const above=owner[Math.max(0,y-1)*NX+midX];
+    const right=owner[midY*NX+Math.min(NX-1,x+s)];
+    const left=owner[midY*NX+Math.max(0,x-1)];
+    const dy=Math.max(s,mesh[3*below+1]+mesh[3*below+2]/2-mesh[3*above+1]-mesh[3*above+2]/2);
+    const dx=Math.max(s,mesh[3*right]+mesh[3*right+2]/2-mesh[3*left]-mesh[3*left+2]/2);
+    const omega=(current.ux[below]-current.ux[above])/dy-(current.uy[right]-current.uy[left])/dx;
+    vorticity[id]=(omega*LENGTH+4)/8;
+  }
+}
+
+function drawFlow() {
+  const mode = $('field').value;
+  const {low,mid,high,ends} = scales[mode];
+  ['keyLow','keyHigh','keyUnits'].forEach((id,i)=>{ $(id).textContent=ends[i]; });
+  $('ramp').style.background = 'linear-gradient(90deg,'+[low,mid,high].map(c=>'rgb('+c.join(',')+')').join(',')+')';
+  if (current && mode==='vorticity') computeVorticity();
+  const field=fieldPixels;
+  const colors=new Uint8ClampedArray(3*(current?.cells ?? 1));
+  for (let i=0; i<colors.length/3; i++) {
+    const v=current ? clamp(fieldValue(mode,i),0,1) : mode==='speed' ? 0 : .5;
+    const from=v<.5 ? low : mid, to=v<.5 ? mid : high, weight=(2*v)%1;
+    for (let ch=0; ch<3; ch++) colors[3*i+ch]=v===1 ? high[ch] : from[ch]+weight*(to[ch]-from[ch]);
+  }
+  for (let i=0; i<NX*NY; i++) {
+    const c=current ? 3*(owner?.[i] ?? i) : 0, j=4*i;
+    field.data[j]=mask[i] ? 206 : colors[c];
+    field.data[j+1]=mask[i] ? 228 : colors[c+1];
+    field.data[j+2]=mask[i] ? 227 : colors[c+2];
+    field.data[j+3]=255;
+  }
+  pixels.putImageData(field,0,0);
+  scene.imageSmoothingEnabled=false;
+  scene.drawImage(raster,0,0,960,384);
+  if (current && $('showMesh').checked) {
+    scene.strokeStyle='rgba(218,239,236,.34)';
+    scene.lineWidth=.75;
+    scene.beginPath();
+    if (mesh) {
+      for (let i=0; i<mesh.length; i+=3) scene.rect(displayScale*mesh[i],displayScale*mesh[i+1],
+        displayScale*mesh[i+2],displayScale*mesh[i+2]);
+    } else {
+      for (let x=1; x<NX; x++) { scene.moveTo(x*displayScale,0); scene.lineTo(x*displayScale,384); }
+      for (let y=1; y<NY; y++) { scene.moveTo(0,y*displayScale); scene.lineTo(960,y*displayScale); }
+    }
+    scene.stroke();
+  }
+  if (current && $('streams').checked) drawStreamlines();
+  scene.fillStyle='#e0ede9';
+  scene.font='16px system-ui';
+  scene.fillText('U∞ →',14,24);
+}
+
+function direction(x,y) {
+  const ix=Math.floor(x), iy=Math.floor(y);
+  if (ix<0 || iy<0 || ix>=NX || iy>=NY) return;
+  const pixel=iy*NX+ix;
+  if (mask[pixel]) return;
+  const i=owner?.[pixel] ?? pixel, u=current.ux[i], v=current.uy[i], mag=Math.hypot(u,v);
+  if (mag>.015) return [u/mag,v/mag];
+}
+function drawStreamlines() {
+  scene.strokeStyle='rgba(234,248,244,.62)';
+  scene.lineWidth=1.25;
+  scene.beginPath();
+  const increment=3/displayScale;
+  function trace(x,y,sign,maxSteps) {
+    scene.moveTo(displayScale*x,displayScale*y);
+    for (let k=0; k<maxSteps; k++) {
+      const d=direction(x,y);
+      if (!d) break;
+      const mid=direction(x+increment*.5*sign*d[0],y+increment*.5*sign*d[1]);
+      if (!mid) break;
+      x+=sign*increment*mid[0]; y+=sign*increment*mid[1];
+      if (!direction(x,y)) break;
+      scene.lineTo(displayScale*x,displayScale*y);
+    }
+  }
+  const scale=NX/1280;
+  for (let y=32; y<496; y+=28) trace(8*scale,y*scale,1,340);
+  for (let y=-48; y<=48; y+=24) {
+    const wakeX=320*scale+LENGTH/2;
+    trace(wakeX,NY/2+y*scale,-1,110);
+    trace(wakeX,NY/2+y*scale,1,155);
+  }
+  scene.stroke();
+}
+
+function drawHistory() {
+  const width=chart.canvas.width, height=chart.canvas.height;
+  chart.fillStyle='#f4f8fa';
+  chart.fillRect(0,0,width,height);
+  const last=points.at(-1)?.t ?? 0, end=Math.max(5,last), start=Math.max(0,end-20);
+  const visible=points.filter(p=>p.t>=start);
+  const x=t=>78+853*(t-start)/(end-start);
+  chart.font='15px system-ui';
+  for (const [key,color,label,topY] of [['cd','#a74d19','Arrastre · Cᴅ',26],['cl','#08765e','Sustentación · Cʟ',143]]) {
+    const values=visible.map(p=>p[key]);
+    const low=Math.min(key==='cd' ? 0 : -.015,...values);
+    const high=Math.max(key==='cd' ? .1 : .015,...values);
+    const bottom=low-.08*(high-low), top=high+.08*(high-low);
+    const y=v=>topY+76*(top-v)/(top-bottom);
+    chart.fillStyle=color;
+    chart.fillText(label,78,topY-8);
+    for (const v of [low,(low+high)/2,high]) {
+      chart.strokeStyle='#dce6eb';
+      chart.beginPath();
+      chart.moveTo(78,y(v));
+      chart.lineTo(931,y(v));
+      chart.stroke();
+      chart.fillStyle='#597183';
+      chart.fillText(format(v,key==='cl' && high-low<.1 ? 3 : 2),8,y(v)+4);
+    }
+    chart.strokeStyle=color;
+    chart.lineWidth=2;
+    chart.beginPath();
+    visible.forEach((p,i)=>i ? chart.lineTo(x(p.t),y(p[key])) : chart.moveTo(x(p.t),y(p[key])));
+    chart.stroke();
+  }
+  chart.fillStyle='#597183';
+  chart.fillText(format(start,1),78,239);
+  chart.textAlign='right';
+  chart.fillText(format(end,1)+'  t/t_res',931,239);
+  chart.textAlign='left';
+}
+
+switchMethod();
+</script>
+</body>
+</html>
