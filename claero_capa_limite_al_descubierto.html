@@ -1,0 +1,113 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>[claero] GTA: Capa Límite al Descubierto</title><style>
+:root{--ink:#17334b;--blue:#087ca0;--muted:#597183;--line:#dce6eb;--bg:#f2f6f8}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,sans-serif}header{background:#153b53;color:white;padding:22px max(24px,calc((100% - 1400px)/2));border-bottom:5px solid #18a7bd}header small{color:#9ee6ef;letter-spacing:2px}h1{font-size:clamp(23px,3vw,36px);margin:5px 0}header p{margin:0;color:#cde6ec}main{max-width:1440px;margin:auto;padding:18px;display:grid;grid-template-columns:290px 1fr;gap:16px}section,aside{background:white;border:1px solid var(--line);border-radius:12px;padding:17px;min-width:0}aside{align-self:start}h2{font-size:18px;margin:0 0 10px}h3{font-size:15px;margin:16px 0 8px}label{display:block;font-weight:600;font-size:13px;margin-top:14px}input[type=range]{width:100%;accent-color:var(--blue)}input[type=number],select{width:100%;padding:8px;border:1px solid #b9cdd7;border-radius:6px;background:white;color:var(--ink)}.val{float:right;color:var(--blue);font-variant-numeric:tabular-nums}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row label{margin:0;font-weight:400}.content{display:grid;gap:16px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px}.metric{padding:10px;background:#f4f8fa;border-radius:8px;border-left:3px solid #40a7bb}.metric small{display:block;color:var(--muted)}.metric strong{font-size:19px;display:block;margin-top:3px;font-variant-numeric:tabular-nums}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.note{font-size:13px;color:var(--muted);line-height:1.5}.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}svg{display:block;width:100%;height:auto;overflow:visible}svg text{font:12px system-ui;fill:#39576a}button{padding:8px 12px;border:1px solid #99bfca;background:#edf8fa;color:var(--ink);border-radius:6px;cursor:pointer}footer{text-align:center;color:var(--muted);font-size:12px;padding:12px} .eq{font-family:Georgia,serif;font-size:17px;line-height:1.6}.warn{color:#985b16}.good{color:#17734e}@media(max-width:850px){main{grid-template-columns:1fr}.two{grid-template-columns:1fr}aside{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}aside h2,aside .note{grid-column:1/-1}}@media(max-width:480px){aside{display:block}main{padding:8px}}
+
+main{grid-template-columns:260px minmax(0,1fr) 260px}
+.content{min-width:0}
+.legend{gap:8px 16px;margin-bottom:6px}
+.legend > span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{width:38px;height:12px;flex:none}
+.section-position{background:#edf8fa;border:1px solid #99bfca;border-radius:8px;padding:10px 12px}
+.section-position label{margin:0;font-size:15px}
+.section-position input{display:block;margin:2px 0 0;min-height:32px}
+.section-position input:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.teaching{display:block;line-height:1.5}
+.teaching ol{padding-left:1.3em;margin:0}
+.teaching li+li{margin-top:12px}
+@media(max-width:1150px){main{grid-template-columns:250px minmax(0,1fr)}.teaching{grid-column:2}}
+@media(max-width:850px){main{grid-template-columns:minmax(0,1fr)}.teaching{grid-column:1}}
+@media(max-width:390px){.section-position .val{float:none;display:block}}
+</style><header><small>FLUIDOS! · MECÁNICA DE FLUIDOS</small><h1>[claero] GTA: Capa Límite al Descubierto</h1><p>Crecimiento, perfiles de velocidad y espesores característicos</p></header><main><aside><h2>Condiciones del flujo</h2><div><label for="mode">Modelo</label><select id="mode"><option value="lam">Laminar · Blasius</option><option value="turb">Turbulenta desde el borde de ataque</option><option value="mix">Laminar → turbulenta</option></select></div><div><label for="fluid">Fluido de referencia</label><select id="fluid"><option value="air">Aire (aprox. 20 °C)</option><option value="water">Agua (aprox. 20 °C)</option><option value="custom">Personalizado</option></select></div><div><label for="U">Velocidad uₑ (m/s) <span class="val" id="Uv"></span></label><input id="U" type="range" min="-1" max="2" step=".01" value="1"></div><div><label for="rho">Densidad ρ (kg/m³)</label><input id="rho" type="number" min="0.00001" step="any" value="1.204"></div><div><label for="mu">Viscosidad dinámica μ (Pa·s)</label><input id="mu" type="number" min="0.000000001" step="any" value="0.0000181"><div class="note" id="nuval"></div></div><div><label for="L">Longitud L (m) <span class="val" id="Lv"></span></label><input id="L" type="range" min="-1.3" max="1.3" step=".01" value="0"></div><div><label for="b">Anchura b (m)</label><input id="b" type="number" min="0.00001" step="any" value="1"></div><div><label for="x">Sección x/L <span class="val" id="xv"></span></label><input id="x" type="range" min="0.001" max="1" step=".001" value=".65"><button id="end" style="margin-top:4px">Ir al extremo de la placa</button></div><div><label for="crit">Reynolds crítico <span class="val" id="critv"></span></label><input id="crit" type="range" min="5" max="6.5" step=".01" value="5.69897"></div><div><label for="scale">Escala transversal</label><select id="scale"><option value="exag">Exagerada (automática)</option><option value="real">Real (1:1)</option></select></div><div><label for="compare"><input id="compare" type="checkbox"> Comparar con el otro régimen</label></div><p class="note">Placa plana, flujo 2D, estacionario, densidad constante, corriente externa uniforme y una sola cara mojada. Sliders logarítmicos para uₑ, L y Re crítico.</p></aside><div class="content"><section><h2>1 · Desarrollo de la capa límite (<span id="longModel">toda laminar</span>)</h2><div class="legend" id="longLegend" role="group" aria-label="Leyenda de la vista longitudinal"></div><svg style="overflow:hidden" id="long" viewBox="0 0 920 300" role="img" aria-label="Desarrollo longitudinal de capa límite"></svg><div class="section-position">
+<label for="xPlot">Posición de la sección transversal <span class="val" id="xPlotValue" aria-hidden="true"></span></label>
+<input id="xPlot" type="range" aria-describedby="xPlotHint">
+<div class="note" id="xPlotHint">Usa las flechas del teclado o arrastra el deslizador para recorrer la placa.</div>
+</div><div class="note" id="scaleinfo"></div><div class="note" id="valid"></div></section><section><h2>2 · Sección seleccionada</h2><div class="metrics" id="metrics"></div></section><section><h2>3 · Tres espesores, tres significados</h2><div class="two"><div><h3>Perfil de velocidad y espesores</h3><svg id="profile" viewBox="0 0 440 330"></svg><p class="note">δ₉₉: distancia a la pared a la que u = 0,99 uₑ. En el modelo turbulento, δ nominal marca el borde del perfil aproximado de la ley de potencia 1/7, u/uₑ = (y/δ)<sup>1/7</sup>. En y = δ, el perfil alcanza u = uₑ. El criterio del 99 % da δ₉₉ = 0,99<sup>7</sup>δ, aproximadamente el 93 % del espesor nominal.</p></div><div><h3>Déficits integrales y áreas equivalentes</h3><svg id="deficit" viewBox="0 0 440 330"></svg><p class="note">Cada área coloreada equivale al rectángulo del mismo color y anchura unitaria. La altura de ese rectángulo es el espesor correspondiente.</p></div></div><div class="two"><div><div class="eq">δ* = ∫₀∞ (1 − u/uₑ) dy</div><p class="note">Déficit de gasto por unidad de anchura: ρuₑδ*. La pared desplazada δ* reproduce el gasto real con corriente uniforme.</p></div><div><div class="eq">δ** = ∫₀∞ (u/uₑ)(1 − u/uₑ) dy</div><p class="note">Déficit de cantidad de movimiento del gasto real: ρuₑ²δ**. Para reproducir el flujo de cantidad de movimiento con corriente uniforme, la pared se desplaza δ* + δ**.</p></div></div><h3>Equivalencia de gasto y cantidad de movimiento</h3><svg id="equiv" viewBox="0 0 900 190"></svg></section><section><h2>4 · De la capa límite a la fuerza de arrastre</h2><div class="two"><div><svg id="shear" viewBox="0 0 440 260"></svg></div><div><svg id="drag" viewBox="0 0 440 260"></svg></div></div><div class="eq">F(x)/b = ρuₑ²δ**(x) = ∫₀ˣ τₚ(s) ds</div><p class="note" id="forceinfo"></p><h3>Modelo y límites de aplicación</h3><div id="modelinfo" class="note"></div></section></div>
+<aside class="teaching" aria-labelledby="teachingTitle">
+<h2 id="teachingTitle">Explora y aprende</h2>
+<ol>
+<li><strong>Compara tres posiciones.</strong> En modo laminar, lleva la sección al 25 %, al 50 % y al 100 % de L. Anota los tres espesores. ¿Por qué al cuadruplicar x se duplican?</li>
+<li><strong>Duplica la velocidad.</strong> Mantén el fluido y x fijos. Compara δ₉₉ antes y después en cada régimen. ¿En cuál se reduce más en términos relativos?</li>
+<li><strong>Sigue una línea de corriente.</strong> Usa la escala exagerada y sigue una línea gris desde el borde de ataque. Compara su elevación con δ* y relaciona el desplazamiento con el déficit de gasto.</li>
+<li><strong>Distingue los dos bordes.</strong> Selecciona el régimen turbulento y localiza δ₉₉ y δ nominal en la vista longitudinal. ¿Cuál se alcanza primero al alejarse de la placa? Predice el cociente a partir de la ley 1/7.</li>
+<li><strong>Compara fricción y arrastre.</strong> A iguales uₑ, L y x, cambia de laminar a turbulento y registra τₚ y F. En cada régimen observa cómo puede disminuir τₚ a lo largo de la placa mientras F aumenta. Comprueba con δ** el valor de F/b.</li>
+<li><strong>Adelanta la transición.</strong> Selecciona el modo mixto y reduce el Reynolds crítico hasta que la transición quede sobre la placa. Desplaza la sección a ambos lados de la marca y comprueba qué magnitudes pueden saltar y cuáles se mantienen continuas en el modelo.</li>
+</ol>
+</aside></main><footer>Norberto Fueyo y ChatGPT · Material docente · Mecánica de Fluidos</footer><script>
+'use strict';
+const $=id=>document.getElementById(id), C={blue:'#087ca0',orange:'#e39724',pink:'#ad5796',gray:'#8299a5',dark:'#17334b'};
+const fnum=(v,n=3)=>!Number.isFinite(v)?'—':v===0?'0':Math.abs(v)<.001||Math.abs(v)>=1e5?v.toExponential(2):Number(v.toPrecision(n)).toLocaleString('es-ES',{maximumFractionDigits:8});
+const thicknessLines = [
+  {key:'d99', label:'δ₉₉', style:[C.blue,2]},
+  {key:'ds', label:'δ*', style:[C.orange,2]},
+  {key:'dt', label:'δ**', style:[C.pink,2]},
+  {key:'d', label:'δ nominal turbulenta', style:['#397b68',2,'4 4']},
+];
+const streamLine = {label:'Líneas de corriente exteriores', style:['#596e7b',1,'5 5']};
+const comparisonStyle = ['#7035a4',3,'12 4 2 4'];
+const longModelNames = {
+  lam: 'toda laminar',
+  turb: 'toda turbulenta',
+  mix: 'transición a Re<sub>cr</sub>',
+};
+const transitionLine = {label:'Transición', style:['#c17d20',1.5,'5 4']};
+const sectionLine = {label:'Sección seleccionada', style:['#13374b',2,'5 3']};
+const xControl = $('x');
+const xPlot = $('xPlot');
+for (const attribute of ['min','max','step']) xPlot[attribute] = xControl[attribute];
+
+function syncSection(p) {
+  const percent = fnum(+xControl.value * 100, 4) + ' %';
+  const position = fnum(p.x, 4) + ' m';
+  xPlot.value = xControl.value;
+  $('xv').textContent = percent;
+  $('xPlotValue').textContent = position + ' · ' + percent + ' de L';
+  for (const control of [xControl, xPlot]) {
+    control.setAttribute('aria-valuetext', position + ', ' + percent + ' de la longitud');
+  }
+}
+
+function setSection(fraction) {
+  xControl.value = Math.min(+xControl.max, Math.max(+xControl.min, fraction));
+  render();
+}
+
+// Blasius convention of lecture notes: f'''+f f''=0.
+const h=.005,B=[[0,0,.4696005]];function deriv(a){return[a[1],a[2],-a[0]*a[2]]}function plus(a,k,s){return a.map((v,i)=>v+s*k[i])}for(let i=0;i<1600;i++){let a=B[i],k1=deriv(a),k2=deriv(plus(a,k1,h/2)),k3=deriv(plus(a,k2,h/2)),k4=deriv(plus(a,k3,h));B.push(a.map((v,j)=>v+h*(k1[j]+2*k2[j]+2*k3[j]+k4[j])/6))}function bl(e){if(e>=8)return 1;if(e<=0)return 0;let i=Math.floor(e/h),t=e/h-i;return Math.min(1,B[i][1]*(1-t)+B[i+1][1]*t)}let k99=0;for(let e=0;e<8;e+=.0005)if(bl(e)>=.99){k99=e*Math.SQRT2;break}const KL= .4696005*Math.SQRT2, KD= (8-B.at(-1)[0])*Math.SQRT2, KT=.37*7/72;
+function params(){let U=10**+$('U').value,L=10**+$('L').value,r=+$('rho').value,m=+$('mu').value,b=+$('b').value;return{U,L,r,m,b,nu:m/r,x:L*+$('x').value,crit:10**+$('crit').value,mode:$('mode').value}}
+function state(x,p,mode=p.mode){let {U,nu,r,crit}=p,xt=crit*nu/U; if(x<=0)return{d:0,d99:0,ds:0,dt:0,tau:Infinity,cf:Infinity,reg:mode==='turb'?'T':'L',age:0};let turb=mode==='turb'||mode==='mix'&&x>=xt,age=x;if(turb&&mode==='mix'){let theta=KL*Math.sqrt(nu*xt/U);let a0=(theta/(KT*(nu/U)**.2))**1.25;age=x-xt+a0}let d,ds,dt,cf;if(turb){d=.37*(nu/U)**.2*age**.8;ds=d/8;dt=d*7/72;cf=2*KT*.8*(nu/(U*age))**.2;return{d,d99:d*.99**7,ds,dt,cf,tau:.5*r*U*U*cf,reg:'T',age}}let s=Math.sqrt(nu*x/U);d=k99*s;ds=KD*s;dt=KL*s;cf=KL/Math.sqrt(U*x/nu);return{d,d99:d,ds,dt,cf,tau:.5*r*U*U*cf,reg:'L',age}}
+function vel(y,s,p){return s.d<=0?1:s.reg==='T'?Math.min(1,Math.max(0,y/s.d)**(1/7)):bl(y*Math.sqrt(p.U/(2*p.nu*s.age)))}
+function path(points,stroke,width=2,dash='',fill='none'){return `<path d="${points.map((p,i)=>(i?'L':'M')+p.map(v=>v.toFixed(2)).join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" ${dash?'stroke-dasharray="'+dash+'"':''}/>`}function line(x1,y1,x2,y2,c='#cbd8df',w=1,d=''){return path([[x1,y1],[x2,y2]],c,w,d)}function txt(x,y,t,a='start',c=''){return `<text x="${x}" y="${y}" text-anchor="${a}" ${c?'style="fill:'+c+'"':''}>${t}</text>`}function rect(x,y,w,h,c,o=.15){return `<rect x="${x}" y="${y}" width="${Math.max(0,w)}" height="${Math.max(0,h)}" fill="${c}" opacity="${o}"/>`}function samples(n,fn){return Array.from({length:n+1},(_,i)=>fn(i/n,i))}function arrow(x,y,x2,y2,c=C.blue){if(Math.abs(x2-x)<.5)return '';return line(x,y,x2,y2,c,1.35)+path([[x2-4,y2-2.5],[x2,y2],[x2-4,y2+2.5]],c,1.2)}
+function render(){const p=params();syncSection(p);$('longModel').innerHTML = longModelNames[p.mode];if(![p.r,p.m,p.b].every(v=>Number.isFinite(v)&&v>0)){$('valid').textContent='Introduzca densidad, viscosidad y anchura positivas.';return}const s=state(p.x,p),e=state(p.L,p),xt=p.crit*p.nu/p.U,other=s.reg==='L'?'turb':'lam',cmp=$('compare').checked,ss=state(p.x,p,other),Re=p.U*p.x/p.nu; $('Uv').textContent=fnum(p.U);$('Lv').textContent=fnum(p.L);$('critv').textContent=fnum(p.crit);$('nuval').textContent='ν = '+fnum(p.nu)+' m²/s';let W=820,X=55,Y=251,top=30,maxd=Math.max(e.d,cmp?state(p.L,p,other).d:0),sy=$('scale').value==='real'?W/p.L:Math.min((Y-top)/(maxd*2.5),W/p.L*500),xx=x=>X+W*x/p.L,yy=y=>Math.max(-10000,Y-y*sy);let out=rect(X,Y,W,10,C.dark,1)+line(X,Y,X+W,Y,C.dark,2);for(let i=0;i<=5;i++){let x=p.L*i/5;out+=line(xx(x),Y,xx(x),Y+6)+txt(xx(x),Y+22,fnum(x),'middle')}out+=txt(X+W,Y+38,'x (m)','end')+txt(X,15,'y ↑')+txt(X+8,Y-210,'uₑ →');let xs=samples(200,t=>t*p.L);if(p.mode==='mix'&&xt<p.L){xs.push(xt*(1-1e-9),xt);xs.sort((a,b)=>a-b)}let curves=xs.map(x=>[x,state(x,p)]);out+=path([[X,Y],...curves.map(([x,z])=>[xx(x),yy(z.d99)]),[X+W,Y],[X,Y]],'none',0,'','#e3f4f7');for(let k of [1.25,1.7,2.15]){let a=k*maxd;out+=path(curves.map(([x,z])=>[xx(x),yy(a+z.ds)]),...streamLine.style)}
+const hasTransition = p.mode === 'mix' && xt < p.L;
+const activeThicknessLines = thicknessLines.filter(({key}) =>
+  key !== 'd' || p.mode === 'turb' || hasTransition
+);
+for (const {key, style} of activeThicknessLines) {
+  const points = key === 'd' ? curves.filter(([, z]) => z.reg === 'T') : curves;
+  out += path(points.map(([x,z])=>[xx(x),yy(z[key])]), ...style);
+}
+if (cmp) out += path(xs.map(x=>[xx(x),yy(state(x,p,other).d99)]), ...comparisonStyle);
+const legendLines = [...activeThicknessLines, streamLine, sectionLine];
+if (cmp) legendLines.push({
+  label: 'δ<sub>99%</sub> de CL ' + (other === 'lam' ? 'laminar' : 'turbulenta'),
+  style: comparisonStyle,
+});
+if (hasTransition) legendLines.push(transitionLine);
+$('longLegend').innerHTML = legendLines.map(({label, style}) =>
+  `<span><svg width="38" height="12" viewBox="0 0 38 12" aria-hidden="true">${line(1,6,37,6,...style)}</svg><span class="legend-label">${label}</span></span>`
+).join('');
+for(let t of [.16,.36,.56,.76,.92]){let x=p.L*t,z=state(x,p);let maxy=Math.max(z.d*1.18,maxd*.22);for(let j=0;j<=9;j++){let y=maxy*j/9;out+=arrow(xx(x),yy(y),xx(x)+48*vel(y,z,p),yy(y))}}if(hasTransition)out+=line(xx(xt),top,xx(xt),Y,...transitionLine.style)+txt(xx(xt)+4,top+10,'Transición');out+=line(xx(p.x),top,xx(p.x),Y,...sectionLine.style)+`<circle cx="${xx(p.x)}" cy="${yy(s.d99)}" r="4" fill="${C.blue}"/>`+txt(Math.min(xx(p.x)+5,790),22,'x = '+fnum(p.x)+' m');$('long').innerHTML=`<defs><clipPath id="plotclip"><rect x="${X}" y="${top}" width="${W+49}" height="${Y-top}"/></clipPath></defs>`+out;$('scaleinfo').textContent='Escala transversal ×'+fnum(sy/(W/p.L))+' respecto a la longitudinal. Flechas: perfiles u; líneas de corriente exteriores: y = y₀ + δ* (corriente externa uniforme). Clic en el dibujo para elegir x.';$('valid').innerHTML=`<span class="${s.d99/p.x<.03?'good':'warn'}">δ₉₉/x = ${fnum(100*s.d99/p.x)} % · ${s.d99/p.x<.03?'capa delgada (criterio orientativo 3 %)':'capa no suficientemente delgada según el criterio orientativo 3 %'}</span> · x crítico = ${fnum(xt)} m${p.mode==='lam'&&Re>p.crit?' · Atención: se ha superado Re crítico; Blasius se muestra como referencia hipotética.':''}${p.mode==='turb'&&Re<p.crit?' · Turbulencia impuesta, no predicción de transición.':''}`;
+let F=p.b*p.r*p.U**2*s.dt, CD=2*s.dt/p.x;let metrics=[['Régimen',s.reg==='L'?'Laminar':'Turbulento',''],['Reₓ',Re,''],['δ₉₉',s.d99*1000,'mm'],['δ*',s.ds*1000,'mm'],['δ**',s.dt*1000,'mm'],['H = δ*/δ**',s.ds/s.dt,''],['τₚ',s.tau,'Pa'],['C_f (local)',s.cf,''],['F(0 → x)',F,'N'],['Cᴅ (0 → x)',CD,'']];$('metrics').innerHTML=metrics.map(([l,v,u])=>`<div class="metric"><small>${l.replace('C_f','C<sub>f</sub>')}</small><strong>${typeof v==='string'?v:fnum(v)} ${u}</strong></div>`).join('');
+let ymax=Math.max(s.d,cmp?ss.d:0)*1.30, A=55,R=330,BY=275,H=230, ymap=y=>BY-H*y/ymax, umap=u=>A+R*u;let grid='';for(let i=0;i<=4;i++){let y=ymax*i/4;grid+=line(A,ymap(y),A+R,ymap(y),'#e4ebef')+txt(A-7,ymap(y)+4,fnum(y*1000),'end')}for(let i=0;i<=4;i++)grid+=line(umap(i/4),BY,umap(i/4),BY+5)+txt(umap(i/4),BY+19,fnum(i/4),'middle');grid+=line(A,BY,A,45,C.dark)+line(A,BY,A+R,BY,C.dark)+txt(A,22,'y (mm)')+txt(A+R,BY+37,'u/uₑ','end');let prof=grid+path(samples(180,t=>[umap(vel(t*ymax,s,p)),ymap(t*ymax)]),C.blue,3)+line(umap(1),45,umap(1),BY,'#a6b6c0',1,'4 4');if(cmp)prof+=path(samples(180,t=>[umap(vel(t*ymax,ss,p)),ymap(t*ymax)]),'#64748b',2,'5 4')+txt(A+R,22,'Comparación: '+(other==='lam'?'laminar':'turbulenta'),'end');for(let [k,c,l] of [['d99',C.blue,'δ₉₉'],['ds',C.orange,'δ*'],['dt',C.pink,'δ**']]){prof+=line(A,ymap(s[k]),A+R,ymap(s[k]),c,1.5,'4 3')+txt(A+R+6,ymap(s[k])+4,l,'start',c)}$('profile').innerHTML=prof;
+let def=grid;for(let [key,c,fn] of [['ds',C.orange,u=>1-u],['dt',C.pink,u=>u*(1-u)]]){let pts=samples(180,t=>[umap(fn(vel(t*ymax,s,p))),ymap(t*ymax)]);def+=path([[A,BY],...pts,[A,ymap(ymax)],[A,BY]],c,1.8,'',c+'38');def+=rect(A,ymap(s[key]),R,BY-ymap(s[key]),c,.07)+path([[A,BY],[A,ymap(s[key])],[A+R,ymap(s[key])],[A+R,BY]],c,1.4,'5 4')}def+=txt(A+R,22,'Integrandos adimensionales','end');$('deficit').innerHTML=def;
+let eq='';for(let [i,title,d] of [[0,'Flujo real',0],[1,'Mismo gasto',s.ds],[2,'Mismo flujo de cant. de movimiento',s.ds+s.dt]]){let x=20+i*300,base=146,ht=113,ys=ht/ymax;eq+=txt(x+125,17,title,'middle')+rect(x,base,250,9,C.dark,1);if(i>0)eq+=rect(x,base-d*ys,250,d*ys,i===1?C.orange:C.pink,.42)+line(x,base-d*ys,x+250,base-d*ys,C.dark,2);for(let j=1;j<=10;j++){let y=ymax*j/10;if(i>0&&y<d)continue;let u=i===0?vel(y,s,p):1;eq+=arrow(x+24,base-y*ys,x+24+190*u,base-y*ys)}eq+=txt(x+125,177,i===0?'Pared real':i===1?'Pared elevada δ*':'Pared elevada δ* + δ**','middle')} $('equiv').innerHTML=eq;
+function mini(id,key,title,unit,c){let a=52,b=220,w=360,hh=170;let data=samples(180,t=>{let x=p.L*(.001+.999*t),z=state(x,p);return[x,key==='tau'?z.tau:p.b*p.r*p.U**2*z.dt]});if(key==='force')data.unshift([0,0]);let max=Math.max(...data.map(q=>q[1]))*1.08,px=x=>a+w*x/p.L,py=v=>b-hh*v/max;let o=txt(a,22,title)+txt(a,40,unit);for(let i=0;i<=4;i++){o+=line(a,py(max*i/4),a+w,py(max*i/4),'#e4ebef')+txt(a-5,py(max*i/4)+4,fnum(max*i/4),'end');o+=txt(px(p.L*i/4),b+19,fnum(p.L*i/4),'middle')}o+=line(a,b,a+w,b,C.dark)+line(a,b,a,50,C.dark)+path(data.map(([x,v])=>[px(x),py(v)]),c,2.5)+line(px(p.x),50,px(p.x),b,C.gray,1,'4 4')+`<circle cx="${px(p.x)}" cy="${py(key==='tau'?s.tau:F)}" r="4" fill="${c}"/>`+txt(a+w,b+35,'x (m)','end');$(id).innerHTML=o}mini('shear','tau','Esfuerzo local τₚ','Pa',C.blue);mini('drag','force','Arrastre acumulado F','N',C.pink);$('forceinfo').textContent=`En x = ${fnum(p.x)} m: F/b = ${fnum(F/p.b)} N/m; F = ${fnum(F)} N. C_f = τₚ/(½ρuₑ²); C_D = F/(½ρuₑ² b x). Una cara. El esfuerzo en el borde de ataque ideal es singular e integrable; se grafica desde x/L = 0,001.`;$('modelinfo').innerHTML=`<b>Laminar:</b> solución numérica de Blasius, η = y√(uₑ/(2νx)), f‴ + ff″ = 0, f(0)=f′(0)=0, f′(∞)=1; u/uₑ=f′. δ₉₉ ≈ 5√(νx/uₑ), δ* ≈ 1,721√(νx/uₑ), δ** ≈ 0,664√(νx/uₑ).<br><b>Turbulenta:</b> u/uₑ=(y/δ)<sup>1/7</sup>, δ/x=0,37 Reₓ<sup>−1/5</sup>, δ*=δ/8, δ**=7δ/72. Se usa C_f≈0,05756 Reₓ<sup>−1/5</sup> (coherente con von Kármán y el redondeo de δ); no se deriva la ley 1/7 en la pared. <br><b>Transición:</b> modelo abrupto ilustrativo con origen virtual turbulento ajustado para conservar δ** y, por tanto, F; δ*, δ₉₉ y τₚ pueden saltar. No predice transición ni desprendimiento. La comparación muestra regímenes idealizados a igualdad de condiciones. Fuente: Tema 8, §§19.1–19.7.`;
+}
+for(let id of ['U','L','rho','mu','b','x','crit','mode','scale','compare'])$(id).addEventListener('input',()=>{if(id==='rho'||id==='mu')$('fluid').value='custom';render()});$('fluid').addEventListener('change',()=>{if($('fluid').value==='air'){$('rho').value=1.204;$('mu').value=.0000181}else if($('fluid').value==='water'){$('rho').value=998.2;$('mu').value=.001002}render()});xPlot.addEventListener('input', () => setSection(+xPlot.value));
+$('end').onclick = () => setSection(1);
+$('long').addEventListener('click', ev => {
+  const bounds = $('long').getBoundingClientRect();
+  const x = (ev.clientX - bounds.left) * 920 / bounds.width;
+  setSection((x - 55) / 820);
+});
+render();
+</script></html>
