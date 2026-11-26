@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[claero] GTA: Aerogenerador</title>
+<style>
+:root{--ink:#173144;--muted:#526b79;--line:#cbdbe3;--teal:#14766e;--blue:#2364a5;--amber:#985407;--wash:#edf3f6;--paper:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--wash);color:var(--ink);font:16px system-ui,-apple-system,sans-serif}
+main{max-width:1530px;margin:auto;padding:clamp(12px,2.5vw,32px)}
+header{margin-bottom:20px}.tag{color:var(--teal);font-size:.75rem;font-weight:800;letter-spacing:.11em}
+h1{font-size:clamp(1.8rem,4vw,3rem);letter-spacing:-.04em;line-height:1.1;margin:5px 0 8px}
+h2{font-size:1.13rem;margin:0 0 10px}p{margin:7px 0;line-height:1.5}.sub{color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(195px,245px) minmax(0,1fr) minmax(200px,255px);gap:14px;align-items:start}
+.work{display:grid;gap:14px;min-width:0}.panel{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:clamp(12px,1.5vw,20px);box-shadow:0 3px 12px #18384a08}.sticky{position:sticky;top:12px}
+.suggestions{border-top:4px solid var(--teal)}.suggestions ol{padding-left:1.2rem;margin:8px 0}.suggestions li{margin:0 0 12px;line-height:1.5;font-size:.87rem}.suggestions li:last-child{margin-bottom:0}
+label{font-size:.86rem;font-weight:700}input,button,select{font:inherit;color:inherit}
+input[type=range]{display:block;width:100%;margin:5px 0 13px;accent-color:var(--teal);cursor:pointer}
+.control label{display:flex;justify-content:space-between;gap:5px}.control output{white-space:nowrap;color:var(--teal);font-variant-numeric:tabular-nums}
+select,button{background:#f2f7f8;border:1px solid #a8bfca;border-radius:8px;padding:7px 9px}
+button{cursor:pointer;font-weight:700;font-size:.85rem}button:hover{background:#e3f1ed}select{max-width:100%;font-size:.87rem}
+:focus-visible{outline:3px solid #edb54e;outline-offset:2px}
+details{margin:12px 0 0}summary{font-size:.86rem;font-weight:750;cursor:pointer}details .advanced{margin-top:10px}
+.small,footer{font-size:.8rem;line-height:1.5;color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.metric{background:#edf6f3;border-radius:8px;padding:8px 10px}
+.metric strong{display:block;font-variant-numeric:tabular-nums;color:var(--ink);font-size:clamp(.97rem,1.9vw,1.42rem);overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse;font-size:.86rem;font-variant-numeric:tabular-nums}th,td{padding:6px 3px;border-bottom:1px solid #e2ebef;text-align:right}th:first-child{text-align:left}
+.note{padding:8px 10px;background:#eff5f8;border-radius:8px;margin-top:10px}.warn{background:#fff4e4;color:#804800}
+svg{display:block;width:100%;height:auto;background:#f7fafb;border-radius:9px}svg text{font:12px system-ui,sans-serif;fill:#365363}svg .axis-label{font-weight:700}.plots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.sweepControl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.station{padding:9px 11px;background:#f1f6f7;border-radius:9px;margin-top:10px}.station input{margin-bottom:4px}
+footer{margin-top:16px}
+@media(max-width:1130px){.plots{grid-template-columns:1fr}}
+@media(max-width:940px){.layout{grid-template-columns:minmax(195px,240px) minmax(0,1fr)}.suggestions{grid-column:2;position:static}}
+@media(max-width:640px){.layout{grid-template-columns:1fr}.sticky{position:static}.suggestions{grid-column:1}.metric{padding:7px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="tag">FLUIDOS! · MECÁNICA DE FLUIDOS</div>
+  <h1>[claero] GTA: Aerogenerador</h1>
+  <p class="sub">De las cargas en la pala al empuje, el par y la potencia del rotor</p>
+</header>
+<div class="layout">
+  <aside class="panel sticky" aria-labelledby="inputsTitle">
+    <h2 id="inputsTitle">Condiciones de operación</h2>
+    <div id="operating"></div>
+    <button type="button" id="reset">Restablecer caso nominal</button>
+    <details>
+      <summary>Aire y discretización</summary>
+      <div id="advanced" class="advanced"></div>
+      <label for="dr">Anchura nominal de sección Δr</label>
+      <select id="dr"><option value="2">2 m</option><option value="1" selected>1 m</option><option value="0.5">0,5 m</option><option value="0.25">0,25 m</option></select>
+    </details>
+    <p class="small">Tres palas de radio 26 m. Se integran los tramos de 2 a 26 m. Intervalo de la práctica de 4 a 25 m/s y de 14 a 30 rpm.</p>
+  </aside>
+  <div class="work">
+    <section class="panel" aria-labelledby="totalsTitle">
+      <h2 id="totalsTitle">Resultados del rotor</h2>
+      <div id="metrics" class="metrics"></div>
+      <table>
+        <thead><tr><th scope="col">Magnitud</th><th scope="col">Una pala</th><th scope="col">Tres palas</th></tr></thead>
+        <tbody id="totals"></tbody>
+      </table>
+      <p id="reference" class="small"></p>
+      <p id="validity" class="note small" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="radialTitle">
+      <h2 id="radialTitle">Cargas a lo largo de una pala</h2>
+      <div class="plots">
+        <svg id="rotorDiagram" viewBox="0 0 420 200" role="img" aria-label="Vista frontal del rotor con la sección seleccionada"></svg>
+        <svg id="normalPlot" viewBox="0 0 420 200" role="img" aria-label="Carga normal al plano de giro frente a la distancia al eje"></svg>
+        <svg id="tangentPlot" viewBox="0 0 420 200" role="img" aria-label="Carga tangencial frente a la distancia al eje"></svg>
+        <svg id="torquePlot" viewBox="0 0 420 200" role="img" aria-label="Par local por unidad de longitud frente a la distancia al eje"></svg>
+      </div>
+      <p class="small">Cada punto representa una sección. La carga normal es axial y la carga tangencial positiva impulsa el giro. El par local por unidad de longitud es r fθ. El área con signo bajo su curva da el par de una pala.</p>
+      <div class="station control">
+        <label for="station">Sección inspeccionada <output id="stationValue" for="station"></output></label>
+        <input id="station" type="range" min="1" max="24" step="1" value="12">
+        <div id="local" class="small"></div>
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="sweepTitle">
+      <h2 id="sweepTitle">Barrido de un parámetro · tres palas</h2>
+      <div class="sweepControl">
+        <label for="parameter">Variar</label>
+        <select id="parameter"></select>
+      </div>
+      <p id="fixed" class="small"></p>
+      <div class="plots">
+        <svg id="forcePlot" viewBox="0 0 420 200" role="img" aria-label="Fuerza axial total frente al parámetro elegido"></svg>
+        <svg id="powerPlot" viewBox="0 0 420 200" role="img" aria-label="Potencia mecánica total frente al parámetro elegido"></svg>
+      </div>
+      <p id="sweepStatus" class="small"></p>
+    </section>
+    <section class="panel">
+      <details style="margin:0">
+        <summary>Modelo de la práctica y convenciones</summary>
+        <p class="small">Modelo de elementos de pala con viento axial uniforme. Se usan la cuerda c(r), el alabeo ψ(r) y las correlaciones NACA 4415 de la práctica 6. Se toma r en metros en ambas leyes geométricas y ψ en grados. El pitch total es γ = ψ + φ. Para el caso inicial se elige φ = 0°.</p>
+        <p class="small">w = √(V² + (Ωr)²), β = atan2(V, Ωr), α = β − γ, Re = ρwc/μ. Los coeficientes se evalúan con α en grados y las proyecciones con β en radianes.</p>
+        <p class="small">D′ = ½ρw²c C<sub>D</sub> y L′ = ½ρw²c C<sub>L</sub>. Se proyectan en f<sub>x</sub> = D′ sen β + L′ cos β y f<sub>θ</sub> = L′ sen β − D′ cos β. Se integran f<sub>x</sub> y r f<sub>θ</sub> por el método del punto medio y se calcula P = M<sub>x</sub>Ω. El rotor suma las tres contribuciones axiales y los tres pares. La potencia negativa indica que el rotor consume potencia mecánica para mantener el giro impuesto.</p>
+        <p class="small">C<sub>P</sub> = P<sub>rotor</sub>/(½ρV³πR²). El modelo omite la inducción, la estela y las interacciones entre palas, por lo que C<sub>P</sub> puede salir del intervalo físicamente alcanzable. La potencia es mecánica en el eje.</p>
+      </details>
+    </section>
+  </div>
+  <aside class="panel suggestions sticky" aria-labelledby="ideasTitle">
+    <h2 id="ideasTitle">Sugerencias de uso</h2>
+    <ol>
+      <li><strong>Empieza en el punto nominal.</strong> Con 15 m/s y 26 rpm, recorre la pala con el selector de sección. Compara la carga tangencial con su contribución al par, que aumenta con el brazo r para una misma carga.</li>
+      <li><strong>Explora el pitch.</strong> Deja 26 rpm, barre φ y compara las curvas a 5, 15 y 25 m/s. Busca dónde cambia de signo la potencia y comprueba qué sucede con el empuje.</li>
+      <li><strong>Prueba con poco viento.</strong> Fija 5 m/s y barre las rpm. Localiza las velocidades que dan potencia positiva y observa en qué secciones cambia el sentido de la carga tangencial.</li>
+      <li><strong>Comprueba la discretización.</strong> En el caso nominal, compara Δr = 2, 1 y 0,25 m. Observa cuánto cambian el par y la potencia al refinar la integración.</li>
+    </ol>
+  </aside>
+</div>
+<footer>Norberto Fueyo, EINA, Universidad de Zaragoza<br>Basada en la práctica 6 de Norberto Fueyo y Carlos Montañés.</footer>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const nominal = {wind:15,rpm:26,pitch:0,rho:1.225,mu:18.1,dr:1};
+const rotor = {radius:26, root:2, blades:3};
+const parameters = {
+  wind:{name:'Velocidad del viento V',axis:'V [m/s]',symbol:'V',unit:'m/s',min:4,max:25,step:.1,digits:1},
+  rpm:{name:'Velocidad de giro',axis:'Velocidad de giro [rpm]',symbol:'n',unit:'rpm',min:14,max:30,step:.1,digits:1},
+  pitch:{name:'Pitch de pala φ',axis:'φ [°]',symbol:'φ',unit:'°',min:-25,max:35,step:.1,digits:1},
+  rho:{name:'Densidad ρ',axis:'ρ [kg/m³]',symbol:'ρ',unit:'kg/m³',min:.8,max:1.5,step:.005,digits:3},
+  mu:{name:'Viscosidad dinámica μ',axis:'μ [μPa·s]',symbol:'μ',unit:'μPa·s',min:14,max:23,step:.1,digits:1}
+};
+const blue='#2364a5', teal='#14766e', amber='#985407';
+const numberFormats = Array.from({length:4},(_,digits)=>new Intl.NumberFormat('es-ES',{
+  minimumFractionDigits:digits,maximumFractionDigits:digits
+}));
+function fmt(value,digits=1){
+  if(!Number.isFinite(value)) return '—';
+  const clean = Math.abs(value)<.5*10**(-digits) ? 0 : value;
+  return numberFormats[digits].format(clean);
+}
+function polar(alpha,re){
+  if(alpha < -20 || alpha > 45) return null;
+  const cd = (1.5e-5*Math.abs(alpha)**3+.01)*Math.log10(2.4e7/re);
+  const cl = alpha<7 ? .1*alpha+.444 : alpha<25 ? -.005*alpha**2+.16*alpha+.27 : 1.145;
+  return {cd,cl};
+}
+function section(r,state,omega){
+  const c = .003*r*r-.15*r+2.4;
+  const twist = .075*r*r-3.85*r+49.4;
+  const w = Math.hypot(state.wind,omega*r);
+  const beta = Math.atan2(state.wind,omega*r);
+  const alpha = beta*180/Math.PI-twist-state.pitch;
+  const re = state.rho*w*c/(state.mu*1e-6);
+  const coefficients = polar(alpha,re);
+  if(!coefficients) return {r,c,alpha,fx:null,ft:null,torqueDensity:null};
+  const {cd,cl} = coefficients;
+  const qChord = .5*state.rho*w*w*c;
+  const d = qChord*cd, l = qChord*cl;
+  const fx = d*Math.sin(beta)+l*Math.cos(beta);
+  const ft = l*Math.sin(beta)-d*Math.cos(beta);
+  return {r,c,alpha,fx,ft,torqueDensity:r*ft};
+}
+function solve(state){
+  const omega = 2*Math.PI*state.rpm/60;
+  const count = Math.round((rotor.radius-rotor.root)/state.dr);
+  const sections = Array.from({length:count},(_,i)=>section(rotor.root+(i+.5)*state.dr,state,omega));
+  const invalid = sections.filter(point=>point.fx===null).length;
+  const fx = invalid ? null : sections.reduce((sum,p)=>sum+p.fx*state.dr,0);
+  const torque = invalid ? null : sections.reduce((sum,p)=>sum+p.torqueDensity*state.dr,0);
+  const power = invalid ? null : torque*omega;
+  const cp = invalid ? null : rotor.blades*power/(.5*state.rho*state.wind**3*Math.PI*rotor.radius**2);
+  return {omega,sections,invalid,fx,torque,power,cp};
+}
+function populateControls(){
+  for(const [container,keys] of [['operating',['wind','rpm','pitch']],['advanced',['rho','mu']]]){
+    $(container).innerHTML=keys.map(key=>{
+      const p=parameters[key];
+      return `<div class="control"><label for="${key}">${p.name}<output id="${key}Value" for="${key}"></output></label>
+        <input id="${key}" type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${nominal[key]}"></div>`;
+    }).join('');
+  }
+  $('parameter').innerHTML=Object.entries(parameters).map(([key,p])=>`<option value="${key}">${p.name}</option>`).join('');
+  $('parameter').value='pitch';
+}
+function readState(){
+  return Object.fromEntries(Object.keys(nominal).map(key=>[key,Number($(key).value)]));
+}
+function drawTotals(data){
+  const rows = [
+    ['Empuje axial','kN',data.fx],
+    ['Par en el eje','kN·m',data.torque],
+    ['Potencia mecánica','kW',data.power]
+  ];
+  $('metrics').innerHTML=rows.map(([label,unit,value])=>`<div class="metric small">${label}
+    <strong>${fmt(value===null?null:value*rotor.blades/1000,2)}</strong>${unit}</div>`).join('');
+  $('totals').innerHTML=rows.map(([label,unit,value])=>`<tr><th scope="row">${label} [${unit}]</th>
+    <td>${fmt(value===null?null:value/1000,2)}</td><td>${fmt(value===null?null:value*rotor.blades/1000,2)}</td></tr>`).join('');
+  $('reference').textContent=`Ω = ${fmt(data.omega,3)} rad/s · Cₚ = ${fmt(data.cp,3)} · Área barrida = ${fmt(Math.PI*rotor.radius**2,1)} m² · ${data.sections.length} secciones por pala.`;
+  const status=$('validity');
+  const cpHigh=data.cp>16/27;
+  status.classList.toggle('warn',Boolean(data.invalid||cpHigh));
+  if(data.invalid){
+    status.textContent=`${data.invalid} de ${data.sections.length} secciones fuera de −20° ≤ α ≤ 45°. Los totales quedan sin calcular y las gráficas radiales conservan las secciones válidas.`;
+  } else if(cpHigh){
+    status.textContent='El Cₚ calculado supera el límite de Betz. Es un resultado del modelo simplificado con viento impuesto en la pala.';
+  } else {
+    status.textContent='Todas las secciones están dentro del intervalo de ángulos de ataque de la correlación.';
+  }
+}
+function axisStep(span){
+  const raw=span/4;
+  const factor=10**Math.floor(Math.log10(raw));
+  return factor*[1,2,2.5,5,10].find(n=>n*factor>=raw);
+}
+function drawPlot(id,{points,range,xLabel,yLabel,color,marker,radial=false}){
+  const vals=points.map(p=>p.y).filter(Number.isFinite);
+  const extent=Number.isFinite(marker?.y)?[...vals,marker.y]:vals;
+  const x0=66,x1=404,y0=28,y1=151;
+  const [lo,hi]=range;
+  const X=value=>x0+(x1-x0)*(value-lo)/(hi-lo);
+  const low=Math.min(0,...extent), high=Math.max(0,...extent);
+  const dy=axisStep(high-low||1);
+  const bottom=Math.floor(low/dy)*dy, top=high===low?bottom+4*dy:Math.ceil(high/dy)*dy;
+  const Y=value=>y1-(y1-y0)*(value-bottom)/(top-bottom);
+  let penDown=false;
+  const path=points.map(p=>{
+    if(!Number.isFinite(p.y)){penDown=false;return '';}
+    const part=`${penDown?'L':'M'}${X(p.x).toFixed(2)} ${Y(p.y).toFixed(2)}`;
+    penDown=true;
+    return part;
+  }).join(' ');
+  const yDigits=Math.min(3,Math.max(0,2-Math.floor(Math.log10(dy))-1));
+  const yTicks=Array.from({length:Math.round((top-bottom)/dy)+1},(_,i)=>bottom+i*dy);
+  const xTicks=Array.from({length:5},(_,i)=>lo+(hi-lo)*i/4);
+  const xDigits=xTicks.some(v=>Math.abs(v-Math.round(v))>1e-9)?2:0;
+  const missing=points.map((p,i)=>{
+    if(p.y!==null) return '';
+    const a=i===0?lo:(p.x+points[i-1].x)/2;
+    const b=i===points.length-1?hi:(p.x+points[i+1].x)/2;
+    return `<rect x="${X(a)}" y="${y0}" width="${X(b)-X(a)}" height="${y1-y0}" fill="#f8e8cc"/>`;
+  }).join('');
+  const dot=marker&&Number.isFinite(marker.y)?`<circle cx="${X(marker.x)}" cy="${Y(marker.y)}" r="5" fill="${color}" stroke="white" stroke-width="2"/>`:'';
+  $(id).innerHTML=`<text x="12" y="17" class="axis-label">${yLabel}</text>
+    ${missing}
+    ${yTicks.map(v=>`<path d="M${x0} ${Y(v)}H${x1}" stroke="${Math.abs(v)<dy/100?'#8da2ad':'#d9e4e8'}"/><text x="${x0-6}" y="${Y(v)+4}" text-anchor="end">${fmt(v,yDigits)}</text>`).join('')}
+    ${xTicks.map((v,i)=>`<path d="M${X(v)} ${y1}v4" stroke="#8da2ad"/><text x="${X(v)}" y="169" text-anchor="${i===0?'start':i===4?'end':'middle'}">${fmt(v,xDigits)}</text>`).join('')}
+    <text x="${(x0+x1)/2}" y="188" text-anchor="middle">${xLabel}</text>
+    <path d="${path}" stroke="${color}" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+    ${radial?points.filter(p=>Number.isFinite(p.y)).map(p=>`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="1.6" fill="${color}"/>`).join(''):''}
+    ${marker?`<path d="M${X(marker.x)} ${y0}V${y1}" stroke="${color}" opacity=".65" stroke-dasharray="4 4"/>`:''}${dot}
+    ${vals.length?'':`<text x="${(x0+x1)/2}" y="90" text-anchor="middle">Sin datos en el intervalo válido</text>`}`;
+}
+function drawRotor(selected,sectionWidth){
+  const hubX=154, hubY=105, tip=75;
+  const radialY=r=>hubY-tip*r/rotor.radius;
+  const y=radialY(selected.r);
+  const diagram=$('rotorDiagram');
+  diagram.setAttribute('aria-label',`Vista frontal de tres palas. Sección marcada a ${fmt(selected.r,3)} m del eje.`);
+  diagram.innerHTML=`<text x="12" y="17" class="axis-label">Rotor · vista frontal</text>
+    <circle cx="${hubX}" cy="${hubY}" r="${tip}" fill="none" stroke="#b0c3cd" stroke-dasharray="4 5"/>
+    <path d="M149 106H159L165 189H143Z" fill="#dce8ec" stroke="#9ab0bd"/>
+    <path d="M126 189H182" stroke="#9ab0bd"/>
+    <defs><path id="rotorBlade" d="M152 105 Q146 86 149 68 L153 33 Q154 28 156 31 L158 70 Q160 88 156 105Z"/></defs>
+    <g fill="#9fb5c0" stroke="#637e8b">
+      <use href="#rotorBlade" transform="rotate(120 ${hubX} ${hubY})"/>
+      <use href="#rotorBlade" transform="rotate(240 ${hubX} ${hubY})"/>
+    </g>
+    <use href="#rotorBlade" fill="#d6e9e5" stroke="${teal}"/>
+    <path d="M${hubX} ${radialY(selected.r-sectionWidth/2)}V${radialY(selected.r+sectionWidth/2)}" stroke="${amber}" stroke-width="11"/>
+    <circle cx="${hubX}" cy="${hubY}" r="7" fill="#365363"/>
+    <path d="M${hubX+9} ${y}H192L215 71H226" fill="none" stroke="${amber}" stroke-width="1.4"/>
+    <circle cx="${hubX}" cy="${y}" r="3.5" fill="${amber}" stroke="white"/>
+    <text x="235" y="68" class="axis-label">Sección seleccionada</text>
+    <text x="235" y="87">r = ${fmt(selected.r,3)} m</text>
+    <text x="235" y="123">Radio de pala · 26 m</text>
+    <text x="235" y="142">Viento perpendicular al plano</text>`;
+}
+function drawRadial(data){
+  const station=$('station');
+  station.max=data.sections.length;
+  const index=Math.min(Number(station.value),data.sections.length)-1;
+  const selected=data.sections[index];
+  drawRotor(selected,(rotor.radius-rotor.root)/data.sections.length);
+  $('stationValue').value=`r = ${fmt(selected.r,3)} m`;
+  $('local').textContent=selected.fx===null
+    ? `α = ${fmt(selected.alpha,2)}° · Sección fuera del intervalo de la correlación.`
+    : `α = ${fmt(selected.alpha,2)}° · cuerda = ${fmt(selected.c,3)} m · fₓ = ${fmt(selected.fx,2)} N/m · fθ = ${fmt(selected.ft,2)} N/m · r fθ = ${fmt(selected.torqueDensity,2)} N·m/m.`;
+  const plots = [
+    ['normalPlot','fx','Carga normal fₓ [N/m]',blue],
+    ['tangentPlot','ft','Carga tangencial fθ [N/m]',amber],
+    ['torquePlot','torqueDensity','Par local r fθ [N·m/m]',teal]
+  ];
+  for(const [id,key,yLabel,color] of plots){
+    drawPlot(id,{points:data.sections.map(p=>({x:p.r,y:p[key]})),range:[rotor.root,rotor.radius],
+      xLabel:'Distancia al eje r [m]',yLabel,color,marker:{x:selected.r,y:selected[key]},radial:true});
+  }
+}
+function drawSweep(state,data){
+  const key=$('parameter').value;
+  const p=parameters[key];
+  const sweep=Array.from({length:121},(_,i)=>{
+    const x=p.min+(p.max-p.min)*i/120;
+    return {x,...solve({...state,[key]:x})};
+  });
+  const fixed=Object.entries(parameters).filter(([id])=>id!==key).map(([id,param])=>`${param.symbol} = ${fmt(state[id],param.digits)} ${param.unit}`);
+  $('fixed').textContent=`Constantes · ${fixed.join(' · ')} · Δr = ${fmt(state.dr,2)} m.`;
+  const out=sweep.filter(point=>point.invalid).length;
+  $('sweepStatus').textContent=out
+    ? `${out} de ${sweep.length} casos muestreados fuera del intervalo de α en alguna sección (fondo ámbar). La línea discontinua indica el valor actual.`
+    : 'La línea discontinua y el punto marcan el valor actual del parámetro.';
+  const scaled=value=>value===null?null:value*rotor.blades/1000;
+  for(const [id,metric,yLabel,color] of [['forcePlot','fx','Fuerza axial total [kN]',blue],['powerPlot','power','Potencia total [kW]',teal]]){
+    drawPlot(id,{points:sweep.map(point=>({x:point.x,y:scaled(point[metric])})),range:[p.min,p.max],
+      xLabel:p.axis,yLabel,color,marker:{x:state[key],y:scaled(data[metric])}});
+  }
+}
+function update(){
+  const state=readState();
+  for(const [key,p] of Object.entries(parameters)) $(key+'Value').value=`${fmt(state[key],p.digits)} ${p.unit}`;
+  const data=solve(state);
+  drawTotals(data);
+  drawRadial(data);
+  drawSweep(state,data);
+}
+populateControls();
+for(const key of Object.keys(nominal)){
+  $(key).addEventListener('input',()=>{
+    if(key==='dr'){
+      const station=$('station');
+      const count=(rotor.radius-rotor.root)/Number($('dr').value);
+      const position=(Number(station.value)-.5)/Number(station.max);
+      station.max=count;
+      station.value=Math.floor(position*count)+1;
+    }
+    update();
+  });
+}
+$('parameter').addEventListener('input',()=>{const state=readState();drawSweep(state,solve(state));});
+$('station').addEventListener('input',()=>drawRadial(solve(readState())));
+$('reset').addEventListener('click',()=>{
+  for(const [key,value] of Object.entries(nominal)) $(key).value=value;
+  $('station').max=24;
+  $('station').value=12;
+  $('parameter').value='pitch';
+  update();
+});
+update();
+</script>
+</body>
+</html>
